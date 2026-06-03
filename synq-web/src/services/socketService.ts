@@ -9,6 +9,10 @@ import { apiService } from './apiService';
 class SocketService {
   private socket: Socket | null = null;
 
+  getSocket(): Socket | null {
+    return this.socket;
+  }
+
   connect() {
     const { token } = useAuthStore.getState();
     if (!token) return;

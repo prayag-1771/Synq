@@ -1,9 +1,8 @@
 import { Request, Response } from 'express';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 
-// Initialize the Gemini AI client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'dummy_key');
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+// Initialize the Groq AI client
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy_key' });
 
 export const generateSummary = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -14,9 +13,8 @@ export const generateSummary = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      // Return a mock summary if no API key is provided
-      res.status(200).json({ summary: "• [MOCK AI] This is a mock summary because GEMINI_API_KEY is not set.\n• [MOCK AI] You talked about setting up E2EE and AI." });
+    if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'dummy_key') {
+      res.status(200).json({ summary: "• [MOCK AI] This is a mock summary because GROQ_API_KEY is not set.\n• [MOCK AI] You talked about setting up E2EE and AI." });
       return;
     }
 
@@ -30,9 +28,13 @@ export const generateSummary = async (req: Request, res: Response): Promise<void
     ${transcript}
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.3,
+    });
+
+    const text = chatCompletion.choices[0]?.message?.content || 'No summary generated.';
 
     res.status(200).json({ summary: text });
   } catch (error) {
@@ -50,7 +52,7 @@ export const generateSmartReplies = async (req: Request, res: Response): Promise
       return;
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'dummy_key') {
       res.status(200).json({ replies: ["Sounds good!", "No problem", "I'll check on that."] });
       return;
     }
@@ -59,15 +61,20 @@ export const generateSmartReplies = async (req: Request, res: Response): Promise
     You are a smart reply engine for a chat app.
     Based on the following recent messages, generate EXACTLY 3 short, context-aware reply suggestions for the user.
     The replies should be natural, brief (1-5 words), and distinct from each other.
-    Format your response as a valid JSON array of 3 strings. Example: ["Yes, absolutely", "Not right now", "I will do it"]
+    Format your response EXACTLY as a valid JSON array of 3 strings. NO extra text, NO markdown blocks.
+    Example: ["Yes, absolutely", "Not right now", "I will do it"]
     
     Recent Messages Context:
     ${contextMessages.map((m: any) => `${m.sender}: ${m.text}`).join('\n')}
     `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'llama-3.1-8b-instant',
+      temperature: 0.5,
+    });
+
+    const text = chatCompletion.choices[0]?.message?.content || '[]';
     
     try {
       // Strip markdown code blocks if the model returned them

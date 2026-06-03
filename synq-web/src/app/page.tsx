@@ -9,7 +9,9 @@ import { localDb } from '../db/localDb';
 import { apiService } from '../services/apiService';
 import { socketService } from '../services/socketService';
 import { aiService } from '../services/aiService';
+import { webrtcService } from '../services/webrtcService';
 import PinModal from '../components/PinModal';
+import CallModal from '../components/CallModal';
 import {
   MessageSquare,
   Search,
@@ -22,7 +24,8 @@ import {
   Clock,
   RefreshCw,
   Wand2,
-  Sparkles
+  Sparkles,
+  Video
 } from 'lucide-react';
 
 export default function ChatPage() {
@@ -73,6 +76,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (isAuthenticated && token) {
       socketService.connect();
+      webrtcService.initializeListeners();
       fetchChats();
       fetchUsers();
     }
@@ -339,6 +343,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
       <PinModal />
+      <CallModal />
       {/* Background radial effects */}
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/20 via-slate-950 to-slate-950 pointer-events-none" />
 
@@ -509,6 +514,15 @@ export default function ChatPage() {
                   </span>
                 </div>
               </div>
+              
+              {/* Call Button */}
+              <button
+                onClick={() => webrtcService.callUser(selectedChat.otherUser.id, selectedChat.name)}
+                className="p-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 transition-all shadow-sm"
+                title="Start Video Call"
+              >
+                <Video className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Chat Pane Message History */}

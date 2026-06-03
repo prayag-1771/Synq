@@ -150,6 +150,27 @@ export const setupSocketHandlers = (io: Server) => {
       callback(Array.from(activeUsers.keys()));
     });
 
+    // 6. WebRTC Signaling Events
+    socket.on('webrtc:call-user', ({ targetUserId, offer }: { targetUserId: string, offer: any }) => {
+      socket.to(targetUserId).emit('webrtc:incoming-call', { callerId: userId, callerName: username, offer });
+    });
+
+    socket.on('webrtc:make-answer', ({ targetUserId, answer }: { targetUserId: string, answer: any }) => {
+      socket.to(targetUserId).emit('webrtc:answer-made', { answer, answererId: userId });
+    });
+
+    socket.on('webrtc:ice-candidate', ({ targetUserId, candidate }: { targetUserId: string, candidate: any }) => {
+      socket.to(targetUserId).emit('webrtc:ice-candidate', { candidate, senderId: userId });
+    });
+
+    socket.on('webrtc:reject-call', ({ targetUserId }: { targetUserId: string }) => {
+      socket.to(targetUserId).emit('webrtc:call-rejected', { rejecterId: userId });
+    });
+
+    socket.on('webrtc:end-call', ({ targetUserId }: { targetUserId: string }) => {
+      socket.to(targetUserId).emit('webrtc:call-ended', { enderId: userId });
+    });
+
     // Handle Disconnect
     socket.on('disconnect', () => {
       console.log(`User disconnected: ${username} - Socket: ${socket.id}`);

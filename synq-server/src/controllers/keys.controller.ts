@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../db/db';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
 // Upload keys (Public Key, Encrypted Private Key, Salt)
-export const uploadKeys = async (req: Request, res: Response): Promise<void> => {
+export const uploadKeys = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { publicKey, encryptedPrivateKey, keySalt } = req.body;
-    const userId = req.user?.id; // from Auth Middleware
+    const userId = req.user?.userId; // from Auth Middleware
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -39,7 +40,7 @@ export const uploadKeys = async (req: Request, res: Response): Promise<void> => 
 };
 
 // Fetch public key for a specific user
-export const getPublicKey = async (req: Request, res: Response): Promise<void> => {
+export const getPublicKey = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
 
@@ -69,9 +70,9 @@ export const getPublicKey = async (req: Request, res: Response): Promise<void> =
 };
 
 // Fetch my own encrypted private key (for recovery on a new device)
-export const getMyKeys = async (req: Request, res: Response): Promise<void> => {
+export const getMyKeys = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });

@@ -10,26 +10,38 @@ export const initCrypto = async () => {
 };
 
 /**
- * Derives a symmetric key from a PIN/Password using Argon2id
+ * Derives a symmetric key from a PIN/Password using native WebCrypto PBKDF2
  */
 export const deriveKeyFromPin = async (pin: string, saltHex: string): Promise<Uint8Array> => {
-  await initCrypto();
-  const salt = sodium.from_hex(saltHex);
-  
-  // Use crypto_pwhash to derive a 32-byte key (suitable for secretbox)
-  return sodium.crypto_pwhash(
-    sodium.crypto_secretbox_KEYBYTES,
-    pin,
-    salt,
-    sodium.crypto_pwhash_OPSLIMIT_INTERACTIVE,
-    sodium.crypto_pwhash_MEMLIMIT_INTERACTIVE,
-    sodium.crypto_pwhash_ALG_ARGON2ID13
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(pin),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits']
   );
+  
+  // Convert hex string back to Uint8Array
+  const saltArray = new Uint8Array(saltHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+  
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltArray,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    256 // 32 bytes for libsodium secretbox
+  );
+  
+  return new Uint8Array(derivedBits);
 };
 
 export const generateSalt = async (): Promise<string> => {
-  await initCrypto();
-  return sodium.to_hex(sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES));
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
 /**
@@ -49,7 +61,7 @@ export const generateKeyPair = async () => {
  */
 export const encryptPrivateKey = async (privateKeyHex: string, derivedKey: Uint8Array): Promise<string> => {
   await initCrypto();
-  const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES);
+  const nonce = sodium.randombytes_buf(24); // crypto_secretbox_NONCEBYTES is 24
   const message = sodium.from_hex(privateKeyHex);
   
   const ciphertext = sodium.crypto_secretbox_easy(message, nonce, derivedKey);
@@ -68,8 +80,8 @@ export const encryptPrivateKey = async (privateKeyHex: string, derivedKey: Uint8
 export const decryptPrivateKey = async (encryptedHex: string, derivedKey: Uint8Array): Promise<string> => {
   await initCrypto();
   const payload = sodium.from_hex(encryptedHex);
-  const nonce = payload.slice(0, sodium.crypto_secretbox_NONCEBYTES);
-  const ciphertext = payload.slice(sodium.crypto_secretbox_NONCEBYTES);
+  const nonce = payload.slice(0, 24); // crypto_secretbox_NONCEBYTES
+  const ciphertext = payload.slice(24);
   
   const message = sodium.crypto_secretbox_open_easy(ciphertext, nonce, derivedKey);
   return sodium.to_hex(message);
@@ -80,7 +92,7 @@ export const decryptPrivateKey = async (encryptedHex: string, derivedKey: Uint8A
  */
 export const encryptMessage = async (messageText: string, recipientPublicKeyHex: string, senderPrivateKeyHex: string): Promise<string> => {
   await initCrypto();
-  const nonce = sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES);
+  const nonce = sodium.randombytes_buf(24); // crypto_box_NONCEBYTES is 24
   
   const message = sodium.from_string(messageText);
   const recipientPk = sodium.from_hex(recipientPublicKeyHex);
@@ -102,8 +114,8 @@ export const encryptMessage = async (messageText: string, recipientPublicKeyHex:
 export const decryptMessage = async (encryptedPayloadHex: string, senderPublicKeyHex: string, recipientPrivateKeyHex: string): Promise<string> => {
   await initCrypto();
   const payload = sodium.from_hex(encryptedPayloadHex);
-  const nonce = payload.slice(0, sodium.crypto_box_NONCEBYTES);
-  const ciphertext = payload.slice(sodium.crypto_box_NONCEBYTES);
+  const nonce = payload.slice(0, 24); // crypto_box_NONCEBYTES is 24
+  const ciphertext = payload.slice(24);
   
   const senderPk = sodium.from_hex(senderPublicKeyHex);
   const recipientSk = sodium.from_hex(recipientPrivateKeyHex);
