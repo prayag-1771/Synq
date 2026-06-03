@@ -19,7 +19,8 @@ class SocketService {
 
     if (this.socket?.connected) return;
 
-    const serverUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const envUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const serverUrl = envUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
 
     this.socket = io(serverUrl, {
       auth: { token },
