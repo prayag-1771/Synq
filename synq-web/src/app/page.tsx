@@ -8,6 +8,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { localDb } from '../db/localDb';
 import { apiService } from '../services/apiService';
 import { socketService } from '../services/socketService';
+import { aiService } from '../services/aiService';
 import PinModal from '../components/PinModal';
 import {
   MessageSquare,
@@ -19,7 +20,9 @@ import {
   Smile,
   AlertCircle,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Wand2,
+  Sparkles
 } from 'lucide-react';
 
 export default function ChatPage() {
@@ -39,6 +42,12 @@ export default function ChatPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
+  
+  // AI State
+  const [summary, setSummary] = useState<string | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [smartReplies, setSmartReplies] = useState<string[]>([]);
+  const [isFetchingReplies, setIsFetchingReplies] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -84,8 +93,46 @@ export default function ChatPage() {
       socketService.joinChat(selectedChatId);
       socketService.markAsRead(selectedChatId);
       fetchMessagesInitial(selectedChatId);
+      setSummary(null);
+      setSmartReplies([]);
     }
   }, [selectedChatId]);
+
+  // AI Smart Replies trigger when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg.senderId !== user?.id && !isFetchingReplies) {
+        handleGenerateReplies();
+      }
+    }
+  }, [messages.length]);
+
+  const handleGenerateSummary = async () => {
+    if (!messages || messages.length === 0) return;
+    try {
+      setIsSummarizing(true);
+      const text = await aiService.generateSummary(messages.slice(-50)); // summarize last 50 msgs
+      setSummary(text);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const handleGenerateReplies = async () => {
+    if (!messages || messages.length === 0) return;
+    try {
+      setIsFetchingReplies(true);
+      const replies = await aiService.getSmartReplies(messages.slice(-5));
+      setSmartReplies(replies);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsFetchingReplies(false);
+    }
+  };
 
   const fetchChats = async () => {
     try {
@@ -466,6 +513,37 @@ export default function ChatPage() {
 
             {/* Chat Pane Message History */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0 custom-scrollbar">
+              {/* Catch Me Up AI Action */}
+              {messages.length > 5 && (
+                <div className="flex justify-center mb-6">
+                  <button
+                    onClick={handleGenerateSummary}
+                    disabled={isSummarizing}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 hover:border-indigo-400 text-sm font-medium text-indigo-300 hover:text-indigo-200 transition-all shadow-lg"
+                  >
+                    {isSummarizing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4 text-purple-400" />
+                    )}
+                    {isSummarizing ? 'Summarizing...' : 'Catch Me Up'}
+                  </button>
+                </div>
+              )}
+
+              {/* Summary Display */}
+              {summary && (
+                <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-5 mb-6 text-sm text-indigo-100 shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-3 opacity-20 pointer-events-none">
+                    <Sparkles className="w-12 h-12" />
+                  </div>
+                  <h3 className="font-semibold text-indigo-300 flex items-center gap-2 mb-3">
+                    <Wand2 className="w-4 h-4" /> AI Summary
+                  </h3>
+                  <div className="whitespace-pre-wrap leading-relaxed opacity-90 pl-1">{summary}</div>
+                </div>
+              )}
+
               {/* Pagination Trigger */}
               {hasMoreMessages && messages.length >= 50 && (
                 <div className="flex justify-center pb-4">
@@ -574,8 +652,28 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Chat Pane Message Input */}
-            <div className="p-4 bg-slate-900/10 backdrop-blur-md border-t border-slate-800/60">
+            {/* Smart Replies & Chat Pane Message Input */}
+            <div className="p-4 bg-slate-900/10 backdrop-blur-md border-t border-slate-800/60 flex flex-col gap-3">
+              
+              {/* AI Smart Replies Row */}
+              {smartReplies.length > 0 && (
+                <div className="flex gap-2 px-1 overflow-x-auto custom-scrollbar pb-1">
+                  {smartReplies.map((reply, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setMessageInput(reply);
+                        setSmartReplies([]);
+                      }}
+                      className="px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3 h-3 opacity-70" />
+                      {reply}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <form onSubmit={handleSendMessage} className="flex gap-3 items-center">
                 <div className="flex-1 relative flex items-center">
                   <input

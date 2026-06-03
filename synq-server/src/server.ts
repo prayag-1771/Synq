@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import chatRoutes from './routes/chat.routes';
 import keysRoutes from './routes/keys.routes';
+import aiRoutes from './routes/ai.routes';
 import { setupSocketHandlers } from './sockets/socket';
 
 dotenv.config();
@@ -30,6 +31,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/keys', keysRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
