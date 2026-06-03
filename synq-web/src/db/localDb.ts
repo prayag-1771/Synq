@@ -20,7 +20,7 @@ export interface LocalMessage {
   senderId: string;
   content: string;
   createdAt: string;
-  status: 'SENDING' | 'SENT' | 'FAILED' | 'READ';
+  status: 'SENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
   senderName: string;
   senderAvatar?: string;
 }
