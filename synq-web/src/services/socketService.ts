@@ -13,7 +13,7 @@ const pendingKeyRequests: Record<string, Promise<string | null>> = {};
 
 export const getPublicKeyForUser = async (userId: string): Promise<string | null> => {
   if (publicKeyCache[userId]) return publicKeyCache[userId];
-  if (pendingKeyRequests[userId]) return pendingKeyRequests[userId];
+  if (pendingKeyRequests[userId] !== undefined) return pendingKeyRequests[userId];
 
   pendingKeyRequests[userId] = (async () => {
     try {
