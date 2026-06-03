@@ -7,7 +7,7 @@ import { useChatStore } from '../stores/chatStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localDb } from '../db/localDb';
 import { apiService } from '../services/apiService';
-import { socketService } from '../services/socketService';
+import { socketService, tryDecryptMessage } from '../services/socketService';
 import { aiService } from '../services/aiService';
 import { webrtcService } from '../services/webrtcService';
 import PinModal from '../components/PinModal';
@@ -180,16 +180,16 @@ export default function ChatPage() {
       const res = await apiService.get(`/chats/${chatId}/messages?limit=50`);
       if (res.ok) {
         const data = await res.json();
-        const localMessages = data.map((m: any) => ({
+        const localMessages = await Promise.all(data.map(async (m: any) => ({
           id: m.id,
           chatId: m.chatId,
           senderId: m.senderId,
-          content: m.content,
+          content: await tryDecryptMessage(m.content, m.senderId),
           createdAt: m.createdAt,
           status: 'SENT' as const,
           senderName: m.sender.username,
           senderAvatar: m.sender.avatar || undefined,
-        }));
+        })));
         await localDb.messages.bulkPut(localMessages);
       }
     } catch (err) {
@@ -214,16 +214,16 @@ export default function ChatPage() {
         }
         
         if (data.length > 0) {
-          const localMessages = data.map((m: any) => ({
+          const localMessages = await Promise.all(data.map(async (m: any) => ({
             id: m.id,
             chatId: m.chatId,
             senderId: m.senderId,
-            content: m.content,
+            content: await tryDecryptMessage(m.content, m.senderId),
             createdAt: m.createdAt,
             status: 'SENT' as const,
             senderName: m.sender.username,
             senderAvatar: m.sender.avatar || undefined,
-          }));
+          })));
           await localDb.messages.bulkPut(localMessages);
         }
       }

@@ -6,6 +6,50 @@ import { localDb } from '../db/localDb';
 import { encryptMessage, decryptMessage } from './cryptoService';
 import { apiService } from './apiService';
 
+// Simple in-memory cache for public keys
+const publicKeyCache: Record<string, string> = {};
+
+export const getPublicKeyForUser = async (userId: string): Promise<string | null> => {
+  if (publicKeyCache[userId]) return publicKeyCache[userId];
+  try {
+    const res = await apiService.get(`/keys/${userId}`);
+    if (res.ok) {
+      const { publicKey } = await res.json();
+      if (publicKey) {
+        publicKeyCache[userId] = publicKey;
+        return publicKey;
+      }
+    }
+  } catch (err) {
+    console.error('Failed to fetch public key for', userId);
+  }
+  return null;
+};
+
+export const tryDecryptMessage = async (content: string, senderId: string): Promise<string> => {
+  const { privateKeyHex } = useCryptoStore.getState();
+  const { user } = useAuthStore.getState();
+  
+  // If it's our own message, we shouldn't decrypt it with our private key as recipient, 
+  // wait, if we sent it, we encrypted it for the *other* person! We can't decrypt it ourselves!
+  // BUT we store our own messages in plaintext locally in localDb before sending!
+  // So if we fetch historic messages we sent from the server, we actually can't decrypt them because they were encrypted with the *other* person's public key.
+  // Wait! In Signal/WhatsApp, you encrypt the message TWICE: once for the recipient, once for yourself. Or you just rely on the localDb to have the plaintext.
+  // If localDb is cleared, the historic sent messages from the server are unreadable to us!
+  // Let's at least decrypt messages from OTHERS.
+  
+  if (!privateKeyHex || content.length < 50) return content;
+  if (user && senderId === user.id) return content; // Can't decrypt our own outbox payload
+
+  try {
+    const senderPk = await getPublicKeyForUser(senderId);
+    if (!senderPk) return content;
+    return await decryptMessage(content, senderPk, privateKeyHex);
+  } catch (err) {
+    return content;
+  }
+};
+
 class SocketService {
   private socket: Socket | null = null;
 
@@ -46,13 +90,7 @@ class SocketService {
 
       let finalContent = message.content;
       try {
-        const { privateKeyHex, publicKeyHex } = useCryptoStore.getState();
-        // If we have keys, attempt to decrypt incoming E2EE messages
-        if (privateKeyHex && message.content.length > 50) { // arbitrary length check for ciphertext
-          // We need sender's public key. For simplicity in MVP, we might need an API call here.
-          // Assuming the UI fetches the key and decrypts later, or we just store ciphertext.
-          // For now, store exactly as received. The UI layer can decrypt it before render.
-        }
+        finalContent = await tryDecryptMessage(message.content, message.senderId);
       } catch (err) {
         console.error('Decryption error or unencrypted message');
       }
@@ -146,13 +184,10 @@ class SocketService {
     if (privateKeyHex && chat && chat.type === 'DIRECT' && chat.otherUser) {
       try {
         // Fetch recipient's public key (in a real app, this should be heavily cached)
-        const res = await apiService.get(`/keys/${chat.otherUser.id}`);
-        if (res.ok) {
-          const { publicKey } = await res.json();
-          if (publicKey) {
-             // Encrypt the message payload!
-             payloadToSend = await encryptMessage(content, publicKey, privateKeyHex);
-          }
+        const publicKey = await getPublicKeyForUser(chat.otherUser.id);
+        if (publicKey) {
+           // Encrypt the message payload!
+           payloadToSend = await encryptMessage(content, publicKey, privateKeyHex);
         }
       } catch (err) {
         console.error('Failed to encrypt message, falling back or failing:', err);
