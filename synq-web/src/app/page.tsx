@@ -8,6 +8,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { localDb } from '../db/localDb';
 import { apiService } from '../services/apiService';
 import { socketService } from '../services/socketService';
+import PinModal from '../components/PinModal';
 import {
   MessageSquare,
   Search,
@@ -290,6 +291,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
+      <PinModal />
       {/* Background radial effects */}
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/20 via-slate-950 to-slate-950 pointer-events-none" />
 

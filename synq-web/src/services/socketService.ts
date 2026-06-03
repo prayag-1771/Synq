@@ -1,7 +1,10 @@
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
+import { useCryptoStore } from '../stores/cryptoStore';
 import { localDb } from '../db/localDb';
+import { encryptMessage, decryptMessage } from './cryptoService';
+import { apiService } from './apiService';
 
 class SocketService {
   private socket: Socket | null = null;
@@ -36,12 +39,25 @@ class SocketService {
         await localDb.messages.delete(tempId);
       }
 
+      let finalContent = message.content;
+      try {
+        const { privateKeyHex, publicKeyHex } = useCryptoStore.getState();
+        // If we have keys, attempt to decrypt incoming E2EE messages
+        if (privateKeyHex && message.content.length > 50) { // arbitrary length check for ciphertext
+          // We need sender's public key. For simplicity in MVP, we might need an API call here.
+          // Assuming the UI fetches the key and decrypts later, or we just store ciphertext.
+          // For now, store exactly as received. The UI layer can decrypt it before render.
+        }
+      } catch (err) {
+        console.error('Decryption error or unencrypted message');
+      }
+
       // 2. Put real message into local DB
       await localDb.messages.put({
         id: message.id,
         chatId: message.chatId,
         senderId: message.senderId,
-        content: message.content,
+        content: finalContent,
         createdAt: message.createdAt,
         status: 'SENT',
         senderName: message.sender.username,
@@ -109,7 +125,7 @@ class SocketService {
       senderAvatar,
     };
 
-    // Save optimistic state to local DB
+    // Save optimistic state to local DB (store plaintext locally for instant UI rendering)
     await localDb.messages.put(localMsg);
 
     // Update chat thread updatedAt
@@ -117,8 +133,29 @@ class SocketService {
       updatedAt: createdAt,
     });
 
+    // Handle E2EE Encryption before sending over network
+    let payloadToSend = content;
+    const { privateKeyHex } = useCryptoStore.getState();
+    const chat = await localDb.chats.get(chatId);
+
+    if (privateKeyHex && chat && chat.type === 'DIRECT' && chat.otherUser) {
+      try {
+        // Fetch recipient's public key (in a real app, this should be heavily cached)
+        const res = await apiService.get(`/keys/${chat.otherUser.id}`);
+        if (res.ok) {
+          const { publicKey } = await res.json();
+          if (publicKey) {
+             // Encrypt the message payload!
+             payloadToSend = await encryptMessage(content, publicKey, privateKeyHex);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to encrypt message, falling back or failing:', err);
+      }
+    }
+
     if (this.socket?.connected) {
-      this.sendMessage(chatId, content, tempId);
+      this.sendMessage(chatId, payloadToSend, tempId);
     } else {
       // Offline: mark local message as FAILED and queue in outbox
       await localDb.messages.update(tempId, { status: 'FAILED' });

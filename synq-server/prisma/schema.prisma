@@ -8,12 +8,15 @@ generator client {
 }
 
 model User {
-  id           String            @id @default(uuid())
-  username     String            @unique
-  email        String            @unique
-  passwordHash String
-  avatar       String?
-  createdAt    DateTime          @default(now())
+  id                  String            @id @default(uuid())
+  username            String            @unique
+  email               String            @unique
+  passwordHash        String
+  avatar              String?
+  publicKey           String?           // For E2EE key exchange
+  encryptedPrivateKey String?           // Encrypted with PIN-derived key for backup
+  keySalt             String?           // Salt used for deriving the key from PIN
+  createdAt           DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
   participants ChatParticipant[]
   messages     Message[]

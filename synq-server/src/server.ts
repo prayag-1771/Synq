@@ -5,6 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import chatRoutes from './routes/chat.routes';
+import keysRoutes from './routes/keys.routes';
 import { setupSocketHandlers } from './sockets/socket';
 
 dotenv.config();
@@ -28,6 +29,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/keys', keysRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
