@@ -8,22 +8,32 @@ import { apiService } from './apiService';
 
 // Simple in-memory cache for public keys
 const publicKeyCache: Record<string, string> = {};
+// Cache the promise to prevent simultaneous duplicate requests for the same user
+const pendingKeyRequests: Record<string, Promise<string | null>> = {};
 
 export const getPublicKeyForUser = async (userId: string): Promise<string | null> => {
   if (publicKeyCache[userId]) return publicKeyCache[userId];
-  try {
-    const res = await apiService.get(`/keys/${userId}`);
-    if (res.ok) {
-      const { publicKey } = await res.json();
-      if (publicKey) {
-        publicKeyCache[userId] = publicKey;
-        return publicKey;
+  if (pendingKeyRequests[userId]) return pendingKeyRequests[userId];
+
+  pendingKeyRequests[userId] = (async () => {
+    try {
+      const res = await apiService.get(`/keys/${userId}`);
+      if (res.ok) {
+        const { publicKey } = await res.json();
+        if (publicKey) {
+          publicKeyCache[userId] = publicKey;
+          return publicKey;
+        }
       }
+    } catch (err) {
+      console.error('Failed to fetch public key for', userId);
+    } finally {
+      delete pendingKeyRequests[userId];
     }
-  } catch (err) {
-    console.error('Failed to fetch public key for', userId);
-  }
-  return null;
+    return null;
+  })();
+
+  return pendingKeyRequests[userId];
 };
 
 export const tryDecryptMessage = async (content: string, senderId: string): Promise<string> => {
