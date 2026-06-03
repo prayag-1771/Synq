@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/authStore';
-import { useChatStore, Chat, ChatMessage } from '../stores/chatStore';
+import { useChatStore } from '../stores/chatStore';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { localDb } from '../db/localDb';
 import { apiService } from '../services/apiService';
 import { socketService } from '../services/socketService';
 import {
@@ -11,46 +13,53 @@ import {
   Search,
   Send,
   LogOut,
-  User as UserIcon,
   Loader2,
   Users,
   Smile,
-  AlertCircle
+  AlertCircle,
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 
 export default function ChatPage() {
   const router = useRouter();
   const { user, token, isAuthenticated, clearAuth } = useAuthStore();
   const {
-    chats,
     selectedChatId,
-    messages,
     typingUsers,
-    setChats,
     setSelectedChatId,
-    setMessages,
-    addMessage,
   } = useChatStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [usersList, setUsersList] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [messageInput, setMessageInput] = useState('');
-  const [loadingChats, setLoadingChats] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingChats, setLoadingChats] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 1. Auth Guard
+  // 1. Reactive IndexedDB Queries
+  const chats = useLiveQuery(
+    () => localDb.chats.orderBy('updatedAt').reverse().toArray()
+  ) || [];
+
+  const messages = useLiveQuery(
+    () => localDb.messages.where('chatId').equals(selectedChatId || '').sortBy('createdAt'),
+    [selectedChatId]
+  ) || [];
+
+  // 2. Auth Guard
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
     }
   }, [isAuthenticated, router]);
 
-  // 2. Socket Connection
+  // 3. Socket Connection & Fetch Directories
   useEffect(() => {
     if (isAuthenticated && token) {
       socketService.connect();
@@ -62,17 +71,18 @@ export default function ChatPage() {
     };
   }, [isAuthenticated, token]);
 
-  // 3. Auto Scroll Messages
+  // 4. Auto Scroll to Bottom on New Messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, typingUsers]);
+    setHasMoreMessages(true); // Reset load more availability
+  }, [messages.length, typingUsers]);
 
-  // 4. Socket Chat Join Room
+  // 5. Join Room when Chat Selected
   useEffect(() => {
     if (selectedChatId) {
       socketService.joinChat(selectedChatId);
-      fetchMessages(selectedChatId);
       socketService.markAsRead(selectedChatId);
+      fetchMessagesInitial(selectedChatId);
     }
   }, [selectedChatId]);
 
@@ -82,7 +92,17 @@ export default function ChatPage() {
       const res = await apiService.get('/chats');
       if (res.ok) {
         const data = await res.json();
-        setChats(data);
+        
+        // Map and save to Local DB
+        const localChats = data.map((c: any) => ({
+          id: c.id,
+          type: c.type,
+          name: c.name,
+          avatar: c.avatar,
+          otherUser: c.otherUser,
+          updatedAt: c.updatedAt,
+        }));
+        await localDb.chats.bulkPut(localChats);
       }
     } catch (err) {
       console.error('Error fetching chats:', err);
@@ -103,18 +123,62 @@ export default function ChatPage() {
     }
   };
 
-  const fetchMessages = async (chatId: string) => {
+  const fetchMessagesInitial = async (chatId: string) => {
     try {
-      setLoadingMessages(true);
-      const res = await apiService.get(`/chats/${chatId}/messages`);
+      const res = await apiService.get(`/chats/${chatId}/messages?limit=50`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data);
+        const localMessages = data.map((m: any) => ({
+          id: m.id,
+          chatId: m.chatId,
+          senderId: m.senderId,
+          content: m.content,
+          createdAt: m.createdAt,
+          status: 'SENT' as const,
+          senderName: m.sender.username,
+          senderAvatar: m.sender.avatar || undefined,
+        }));
+        await localDb.messages.bulkPut(localMessages);
       }
     } catch (err) {
-      console.error('Error fetching messages:', err);
+      console.error('Error fetching initial messages:', err);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (!selectedChatId || loadingMore) return;
+    const oldestMessage = messages[0];
+    if (!oldestMessage) return;
+
+    try {
+      setLoadingMore(true);
+      const cursor = oldestMessage.createdAt;
+      const res = await apiService.get(`/chats/${selectedChatId}/messages?cursor=${encodeURIComponent(cursor)}&limit=30`);
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length < 30) {
+          setHasMoreMessages(false);
+        }
+        
+        if (data.length > 0) {
+          const localMessages = data.map((m: any) => ({
+            id: m.id,
+            chatId: m.chatId,
+            senderId: m.senderId,
+            content: m.content,
+            createdAt: m.createdAt,
+            status: 'SENT' as const,
+            senderName: m.sender.username,
+            senderAvatar: m.sender.avatar || undefined,
+          }));
+          await localDb.messages.bulkPut(localMessages);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading older messages:', err);
     } finally {
-      setLoadingMessages(false);
+      setLoadingMore(false);
     }
   };
 
@@ -124,10 +188,15 @@ export default function ChatPage() {
       if (res.ok) {
         const newChat = await res.json();
         
-        // Add to chat list if not already there
-        if (!chats.some((c) => c.id === newChat.id)) {
-          setChats([newChat, ...chats]);
-        }
+        // Save to Dexie
+        await localDb.chats.put({
+          id: newChat.id,
+          type: newChat.type,
+          name: newChat.name,
+          avatar: newChat.avatar,
+          otherUser: newChat.otherUser,
+          updatedAt: newChat.updatedAt,
+        });
         
         setSelectedChatId(newChat.id);
         setSearchQuery('');
@@ -138,20 +207,44 @@ export default function ChatPage() {
     }
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageInput.trim() || !selectedChatId) return;
+    if (!messageInput.trim() || !selectedChatId || !user) return;
 
-    // Send via socket
-    socketService.sendMessage(selectedChatId, messageInput.trim());
+    const content = messageInput.trim();
     setMessageInput('');
     
-    // Stop typing immediately
+    // Stop typing
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
     socketService.sendTypingStatus(selectedChatId, false);
     setIsTyping(false);
+
+    // Call local database first & optimistically emit
+    await socketService.sendMessageOptimistic(
+      selectedChatId,
+      content,
+      user.id,
+      user.username,
+      user.avatar
+    );
+  };
+
+  const handleRetryMessage = async (msg: any) => {
+    if (!selectedChatId || !user) return;
+    
+    // 1. Delete failed message from local DB
+    await localDb.messages.delete(msg.id);
+    
+    // 2. Re-trigger optimistic send
+    await socketService.sendMessageOptimistic(
+      selectedChatId,
+      msg.content,
+      user.id,
+      user.username,
+      user.avatar
+    );
   };
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -317,8 +410,8 @@ export default function ChatPage() {
                         {chat.name}
                       </span>
                       <span className="text-[10px] text-slate-500">
-                        {chat.latestMessage
-                          ? new Date(chat.latestMessage.createdAt).toLocaleTimeString([], {
+                        {chat.updatedAt
+                          ? new Date(chat.updatedAt).toLocaleTimeString([], {
                               hour: '2-digit',
                               minute: '2-digit',
                             })
@@ -329,7 +422,7 @@ export default function ChatPage() {
                       {hasTyping ? (
                         <span className="text-indigo-400 font-medium animate-pulse">is typing...</span>
                       ) : (
-                        chat.latestMessage?.content || 'No messages yet'
+                        'Open conversation'
                       )}
                     </p>
                   </div>
@@ -371,13 +464,29 @@ export default function ChatPage() {
 
             {/* Chat Pane Message History */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0 custom-scrollbar">
-              {loadingMessages ? (
-                <div className="h-full flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+              {/* Pagination Trigger */}
+              {hasMoreMessages && messages.length >= 50 && (
+                <div className="flex justify-center pb-4">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 text-xs font-semibold text-indigo-400 hover:text-indigo-300 disabled:opacity-50 transition-all"
+                  >
+                    {loadingMore ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    )}
+                    Load older messages
+                  </button>
                 </div>
-              ) : messages.length > 0 ? (
+              )}
+
+              {messages.length > 0 ? (
                 messages.map((message) => {
                   const isMe = message.senderId === user.id;
+                  const isSending = message.status === 'SENDING';
+                  const isFailed = message.status === 'FAILED';
 
                   return (
                     <div
@@ -386,31 +495,50 @@ export default function ChatPage() {
                     >
                       {!isMe && (
                         <img
-                          src={message.sender.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${message.sender.username}`}
-                          alt={message.sender.username}
+                          src={message.senderAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${message.senderName}`}
+                          alt={message.senderName}
                           className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/50 self-end mb-1"
                         />
                       )}
                       <div className="flex flex-col">
                         <div
-                          className={`px-4 py-2.5 rounded-2xl text-sm shadow-md transition-all ${
+                          className={`px-4 py-2.5 rounded-2xl text-sm shadow-md transition-all relative group ${
                             isMe
-                              ? 'bg-indigo-600 text-white rounded-br-none'
+                              ? isFailed 
+                                ? 'bg-red-950/40 border border-red-500/30 text-slate-100 rounded-br-none'
+                                : 'bg-indigo-600 text-white rounded-br-none'
                               : 'bg-slate-900 border border-slate-800/60 text-slate-100 rounded-bl-none'
-                          }`}
+                          } ${isSending ? 'opacity-60' : ''}`}
                         >
                           <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                          
+                          {/* Retry button for failed messages */}
+                          {isFailed && (
+                            <button
+                              onClick={() => handleRetryMessage(message)}
+                              className="absolute top-1/2 -left-10 -translate-y-1/2 p-1.5 rounded-md bg-slate-900 border border-slate-800 hover:border-red-500/40 text-red-400 hover:text-red-300 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Failed. Click to retry sending."
+                            >
+                              <RefreshCw className="w-3 h-3 animate-spin-reverse" />
+                            </button>
+                          )}
                         </div>
-                        <span
-                          className={`text-[10px] text-slate-500 mt-1 ${
-                            isMe ? 'text-right' : 'text-left'
+                        <div
+                          className={`text-[10px] text-slate-500 mt-1 flex items-center gap-1.5 ${
+                            isMe ? 'justify-end' : 'justify-start'
                           }`}
                         >
                           {new Date(message.createdAt).toLocaleTimeString([], {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
-                        </span>
+                          {isMe && isSending && (
+                            <Clock className="w-3 h-3 text-slate-500 animate-pulse" />
+                          )}
+                          {isMe && isFailed && (
+                            <span className="text-[9px] text-red-400 font-semibold uppercase tracking-wider">Failed</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -419,8 +547,8 @@ export default function ChatPage() {
                 <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 p-4">
                   <MessageSquare className="w-12 h-12 text-slate-700 mb-3" />
                   <p className="font-semibold text-slate-400">Say hello!</p>
-                  <p className="text-xs text-slate-655 mt-1">
-                    Start the conversation. Your messages are sent in real-time.
+                  <p className="text-xs text-slate-600 mt-1">
+                    Start the conversation. Your messages are securely cached.
                   </p>
                 </div>
               )}

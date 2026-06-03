@@ -81,7 +81,7 @@ export const setupSocketHandlers = (io: Server) => {
     });
 
     // 3. Send Message
-    socket.on('message:send', async ({ chatId, content }: { chatId: string; content: string }) => {
+    socket.on('message:send', async ({ chatId, content, tempId }: { chatId: string; content: string; tempId?: string }) => {
       try {
         // Save to Database
         const message = await prisma.message.create({
@@ -102,8 +102,8 @@ export const setupSocketHandlers = (io: Server) => {
           },
         });
 
-        // Broadcast to the room (including sender)
-        io.to(chatId).emit('message:new', message);
+        // Broadcast to the room (including sender), appending the tempId
+        io.to(chatId).emit('message:new', { ...message, tempId });
 
         // If other participants aren't active in the room but online, notify them
         const participants = await prisma.chatParticipant.findMany({

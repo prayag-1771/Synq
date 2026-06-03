@@ -183,7 +183,9 @@ export const getChatMessages = async (req: AuthenticatedRequest, res: Response) 
     }
 
     const { chatId } = req.params;
+    const { cursor, limit = '50' } = req.query;
     const userId = req.user.userId;
+    const parsedLimit = parseInt(limit as string, 10);
 
     // Verify user is participant in this chat
     const participant = await prisma.chatParticipant.findUnique({
@@ -202,6 +204,56 @@ export const getChatMessages = async (req: AuthenticatedRequest, res: Response) 
     const messages = await prisma.message.findMany({
       where: {
         chatId,
+        ...(cursor ? { createdAt: { lt: new Date(cursor as string) } } : {}),
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: parsedLimit,
+    });
+
+    // Return chronological order
+    return res.status(200).json(messages.reverse());
+  } catch (error) {
+    console.error('Get chat messages error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const syncMessages = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { lastSync } = req.query;
+    const userId = req.user.userId;
+
+    if (!lastSync) {
+      return res.status(400).json({ message: 'lastSync query parameter is required' });
+    }
+
+    // Get all chat IDs the user is in
+    const participants = await prisma.chatParticipant.findMany({
+      where: { userId },
+      select: { chatId: true },
+    });
+
+    const chatIds = participants.map((p) => p.chatId);
+
+    const newMessages = await prisma.message.findMany({
+      where: {
+        chatId: { in: chatIds },
+        createdAt: { gt: new Date(lastSync as string) },
       },
       include: {
         sender: {
@@ -217,9 +269,9 @@ export const getChatMessages = async (req: AuthenticatedRequest, res: Response) 
       },
     });
 
-    return res.status(200).json(messages);
+    return res.status(200).json(newMessages);
   } catch (error) {
-    console.error('Get chat messages error:', error);
+    console.error('Sync messages error:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
