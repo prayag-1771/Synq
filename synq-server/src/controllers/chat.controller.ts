@@ -1,0 +1,225 @@
+import { Response } from 'express';
+import { prisma } from '../db/db';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
+
+export const getChats = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const userId = req.user.userId;
+
+    // Get chats where the user is a participant
+    const chats = await prisma.chat.findMany({
+      where: {
+        participants: {
+          some: {
+            userId,
+          },
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatar: true,
+                email: true,
+              },
+            },
+          },
+        },
+        messages: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+          include: {
+            sender: {
+              select: {
+                id: true,
+                username: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    // Format chats for frontend
+    const formattedChats = chats.map((chat) => {
+      // Find the recipient (the other participant) for direct chats
+      const otherParticipant = chat.participants.find(
+        (p) => p.userId !== userId
+      )?.user || null;
+
+      return {
+        id: chat.id,
+        type: chat.type,
+        name: chat.name || (otherParticipant ? otherParticipant.username : 'Unknown User'),
+        avatar: otherParticipant?.avatar || null,
+        otherUser: otherParticipant,
+        latestMessage: chat.messages[0] || null,
+        updatedAt: chat.updatedAt,
+      };
+    });
+
+    return res.status(200).json(formattedChats);
+  } catch (error) {
+    console.error('Get chats error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getOrCreateDirectChat = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { targetUserId } = req.body;
+    const userId = req.user.userId;
+
+    if (!targetUserId) {
+      return res.status(400).json({ message: 'targetUserId is required' });
+    }
+
+    if (userId === targetUserId) {
+      return res.status(400).json({ message: 'Cannot chat with yourself' });
+    }
+
+    // Check if direct chat already exists
+    const existingChat = await prisma.chat.findFirst({
+      where: {
+        type: 'DIRECT',
+        AND: [
+          { participants: { some: { userId } } },
+          { participants: { some: { userId: targetUserId } } },
+        ],
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatar: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (existingChat) {
+      const otherParticipant = existingChat.participants.find(
+        (p) => p.userId !== userId
+      )?.user || null;
+
+      return res.status(200).json({
+        id: existingChat.id,
+        type: existingChat.type,
+        name: otherParticipant ? otherParticipant.username : 'Unknown User',
+        avatar: otherParticipant?.avatar || null,
+        otherUser: otherParticipant,
+        updatedAt: existingChat.updatedAt,
+      });
+    }
+
+    // Create a new direct chat
+    const newChat = await prisma.chat.create({
+      data: {
+        type: 'DIRECT',
+        participants: {
+          create: [{ userId }, { userId: targetUserId }],
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                avatar: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const otherParticipant = newChat.participants.find(
+      (p) => p.userId !== userId
+    )?.user || null;
+
+    return res.status(201).json({
+      id: newChat.id,
+      type: newChat.type,
+      name: otherParticipant ? otherParticipant.username : 'Unknown User',
+      avatar: otherParticipant?.avatar || null,
+      otherUser: otherParticipant,
+      updatedAt: newChat.updatedAt,
+    });
+  } catch (error) {
+    console.error('Get or create direct chat error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getChatMessages = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { chatId } = req.params;
+    const userId = req.user.userId;
+
+    // Verify user is participant in this chat
+    const participant = await prisma.chatParticipant.findUnique({
+      where: {
+        chatId_userId: {
+          chatId,
+          userId,
+        },
+      },
+    });
+
+    if (!participant) {
+      return res.status(403).json({ message: 'Forbidden: You are not in this chat' });
+    }
+
+    const messages = await prisma.message.findMany({
+      where: {
+        chatId,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    return res.status(200).json(messages);
+  } catch (error) {
+    console.error('Get chat messages error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};

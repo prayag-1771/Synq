@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# production / build outputs
+dist/
+
+# local database files
+*.db
+*.db-journal
+
+# environment secrets
+.env
+.env*.local
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local temporary scripts
+npx
+
