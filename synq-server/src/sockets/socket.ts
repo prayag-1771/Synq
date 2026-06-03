@@ -145,6 +145,25 @@ export const setupSocketHandlers = (io: Server) => {
       }
     });
 
+    // 4b. Mark messages as delivered
+    socket.on('message:delivered', async ({ chatId }: { chatId: string }) => {
+      try {
+        await prisma.message.updateMany({
+          where: {
+            chatId,
+            senderId: { not: userId },
+            status: 'SENT',
+          },
+          data: {
+            status: 'DELIVERED',
+          },
+        });
+        socket.to(chatId).emit('message:delivered', { chatId, delivererId: userId });
+      } catch (err) {
+        console.error('Error updating delivered status:', err);
+      }
+    });
+
     // 5. Get initial presence query for all active users
     socket.on('presence:get_active', (callback: (userIds: string[]) => void) => {
       callback(Array.from(activeUsers.keys()));

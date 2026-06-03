@@ -25,7 +25,9 @@ import {
   RefreshCw,
   Wand2,
   Sparkles,
-  Video
+  Video,
+  Check,
+  CheckCheck
 } from 'lucide-react';
 
 export default function ChatPage() {
@@ -202,7 +204,7 @@ export default function ChatPage() {
             senderId: m.senderId,
             content: finalContent,
             createdAt: m.createdAt,
-            status: 'SENT' as const,
+            status: m.status || 'SENT',
             senderName: m.sender.username,
             senderAvatar: m.sender.avatar || undefined,
           };
@@ -250,7 +252,7 @@ export default function ChatPage() {
               senderId: m.senderId,
               content: finalContent,
               createdAt: m.createdAt,
-              status: 'SENT' as const,
+              status: m.status || 'SENT',
               senderName: m.sender.username,
               senderAvatar: m.sender.avatar || undefined,
             };
@@ -664,6 +666,15 @@ export default function ChatPage() {
                           )}
                           {isMe && isFailed && (
                             <span className="text-[9px] text-red-400 font-semibold uppercase tracking-wider">Failed</span>
+                          )}
+                          {isMe && message.status === 'SENT' && (
+                            <Check className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                          {isMe && message.status === 'DELIVERED' && (
+                            <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                          {isMe && message.status === 'READ' && (
+                            <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
                           )}
                         </div>
                       </div>

@@ -115,6 +115,38 @@ class SocketService {
       await localDb.chats.update(message.chatId, {
         updatedAt: message.createdAt,
       });
+
+      // 4. Emit delivery receipt if it's from someone else
+      const { user } = useAuthStore.getState();
+      if (user && message.senderId !== user.id) {
+        this.socket?.emit('message:delivered', { chatId: message.chatId });
+      }
+    });
+
+    this.socket.on('message:delivered', async ({ chatId }) => {
+      const { user } = useAuthStore.getState();
+      if (!user) return;
+      const sentMessages = await localDb.messages.where('chatId').equals(chatId).toArray();
+      const toUpdate = sentMessages
+        .filter(m => m.senderId === user.id && m.status === 'SENT')
+        .map(m => m.id);
+        
+      if (toUpdate.length > 0) {
+        await localDb.messages.where('id').anyOf(toUpdate).modify({ status: 'DELIVERED' });
+      }
+    });
+
+    this.socket.on('message:read', async ({ chatId }) => {
+      const { user } = useAuthStore.getState();
+      if (!user) return;
+      const sentMessages = await localDb.messages.where('chatId').equals(chatId).toArray();
+      const toUpdate = sentMessages
+        .filter(m => m.senderId === user.id && (m.status === 'SENT' || m.status === 'DELIVERED'))
+        .map(m => m.id);
+        
+      if (toUpdate.length > 0) {
+        await localDb.messages.where('id').anyOf(toUpdate).modify({ status: 'READ' });
+      }
     });
 
     this.socket.on('typing:start', ({ chatId, userId, username }) => {
