@@ -82,17 +82,21 @@ class SocketService {
 
     this.socket.on('message:new', async (message) => {
       const { tempId } = message;
-
-      // 1. Remove optimistic message if matches
-      if (tempId) {
-        await localDb.messages.delete(tempId);
-      }
-
       let finalContent = message.content;
-      try {
-        finalContent = await tryDecryptMessage(message.content, message.senderId);
-      } catch (err) {
-        console.error('Decryption error or unencrypted message');
+
+      // 1. Remove optimistic message if matches and preserve its plaintext content
+      if (tempId) {
+        const optimisticMsg = await localDb.messages.get(tempId);
+        if (optimisticMsg) {
+          finalContent = optimisticMsg.content; // Preserve plaintext!
+        }
+        await localDb.messages.delete(tempId);
+      } else {
+        try {
+          finalContent = await tryDecryptMessage(message.content, message.senderId);
+        } catch (err) {
+          console.error('Decryption error or unencrypted message');
+        }
       }
 
       // 2. Put real message into local DB

@@ -180,16 +180,33 @@ export default function ChatPage() {
       const res = await apiService.get(`/chats/${chatId}/messages?limit=50`);
       if (res.ok) {
         const data = await res.json();
-        const localMessages = await Promise.all(data.map(async (m: any) => ({
-          id: m.id,
-          chatId: m.chatId,
-          senderId: m.senderId,
-          content: await tryDecryptMessage(m.content, m.senderId),
-          createdAt: m.createdAt,
-          status: 'SENT' as const,
-          senderName: m.sender.username,
-          senderAvatar: m.sender.avatar || undefined,
-        })));
+        
+        // Fetch existing messages to prevent overwriting sender's plaintext with ciphertext
+        const existingMessages = await localDb.messages.where('chatId').equals(chatId).toArray();
+        const existingMap = new Map(existingMessages.map(m => [m.id, m]));
+
+        const localMessages = await Promise.all(data.map(async (m: any) => {
+          let finalContent = m.content;
+          const existing = existingMap.get(m.id);
+          
+          if (existing && existing.content.length < 100 && m.senderId === user?.id) {
+             // It's our own message and we already have the plaintext locally!
+             finalContent = existing.content;
+          } else {
+             finalContent = await tryDecryptMessage(m.content, m.senderId);
+          }
+
+          return {
+            id: m.id,
+            chatId: m.chatId,
+            senderId: m.senderId,
+            content: finalContent,
+            createdAt: m.createdAt,
+            status: 'SENT' as const,
+            senderName: m.sender.username,
+            senderAvatar: m.sender.avatar || undefined,
+          };
+        }));
         await localDb.messages.bulkPut(localMessages);
       }
     } catch (err) {
@@ -214,16 +231,30 @@ export default function ChatPage() {
         }
         
         if (data.length > 0) {
-          const localMessages = await Promise.all(data.map(async (m: any) => ({
-            id: m.id,
-            chatId: m.chatId,
-            senderId: m.senderId,
-            content: await tryDecryptMessage(m.content, m.senderId),
-            createdAt: m.createdAt,
-            status: 'SENT' as const,
-            senderName: m.sender.username,
-            senderAvatar: m.sender.avatar || undefined,
-          })));
+          const existingMessages = await localDb.messages.where('chatId').equals(selectedChatId).toArray();
+          const existingMap = new Map(existingMessages.map(m => [m.id, m]));
+
+          const localMessages = await Promise.all(data.map(async (m: any) => {
+            let finalContent = m.content;
+            const existing = existingMap.get(m.id);
+            
+            if (existing && existing.content.length < 100 && m.senderId === user?.id) {
+               finalContent = existing.content;
+            } else {
+               finalContent = await tryDecryptMessage(m.content, m.senderId);
+            }
+
+            return {
+              id: m.id,
+              chatId: m.chatId,
+              senderId: m.senderId,
+              content: finalContent,
+              createdAt: m.createdAt,
+              status: 'SENT' as const,
+              senderName: m.sender.username,
+              senderAvatar: m.sender.avatar || undefined,
+            };
+          }));
           await localDb.messages.bulkPut(localMessages);
         }
       }
