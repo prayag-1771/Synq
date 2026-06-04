@@ -7,7 +7,7 @@ import { useChatStore } from '../stores/chatStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localDb } from '../db/localDb';
 import { apiService } from '../services/apiService';
-import { socketService, tryDecryptMessage } from '../services/socketService';
+import { socketService, tryDecryptMessage, getPublicKeyForUser } from '../services/socketService';
 import { aiService } from '../services/aiService';
 import { webrtcService } from '../services/webrtcService';
 import PinModal from '../components/PinModal';
@@ -157,6 +157,13 @@ export default function ChatPage() {
           updatedAt: c.updatedAt,
         }));
         await localDb.chats.bulkPut(localChats);
+
+        // Eagerly pre-fetch public keys for all direct chat partners for instant 0ms decryption
+        data.forEach((c: any) => {
+          if (c.type === 'DIRECT' && c.otherUser?.id) {
+            getPublicKeyForUser(c.otherUser.id);
+          }
+        });
       }
     } catch (err) {
       console.error('Error fetching chats:', err);
@@ -191,8 +198,8 @@ export default function ChatPage() {
           let finalContent = m.content;
           const existing = existingMap.get(m.id);
           
-          if (existing && existing.content.length < 100 && m.senderId === user?.id) {
-             // It's our own message and we already have the plaintext locally!
+          if (existing && existing.content.length < 150) {
+             // We already have the plaintext locally, no need to decrypt again!
              finalContent = existing.content;
           } else {
              finalContent = await tryDecryptMessage(m.content, m.senderId);
@@ -240,7 +247,7 @@ export default function ChatPage() {
             let finalContent = m.content;
             const existing = existingMap.get(m.id);
             
-            if (existing && existing.content.length < 100 && m.senderId === user?.id) {
+            if (existing && existing.content.length < 150) {
                finalContent = existing.content;
             } else {
                finalContent = await tryDecryptMessage(m.content, m.senderId);
