@@ -95,9 +95,9 @@ class AiService {
   /**
    * Extracts tasks/todos from the current channel context
    */
-  async extractTodos(): Promise<string> {
+  async extractTodos(chatId: string): Promise<string> {
     try {
-      const res = await apiService.get('/ai/todo');
+      const res = await apiService.get(`/ai/todo?chatId=${chatId}`);
       if (!res.ok) throw new Error('Failed to extract todos');
       const data = await res.json();
       return data.todos || '';

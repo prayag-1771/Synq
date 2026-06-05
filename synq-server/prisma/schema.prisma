@@ -31,8 +31,9 @@ model Chat {
   name         String?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
-  participants ChatParticipant[]
-  messages     Message[]
+  participants   ChatParticipant[]
+  messages       Message[]
+  extractedTasks ExtractedTask[]
 }
 
 enum ChatType {
@@ -58,9 +59,10 @@ model Message {
   content   String
   createdAt DateTime      @default(now())
   status    MessageStatus @default(SENT)
-  chat      Chat          @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  sender    User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  embedding MessageEmbedding?
+  chat           Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender         User             @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  embedding      MessageEmbedding?
+  extractedTasks ExtractedTask[]
 
   @@index([chatId, createdAt])
 }
