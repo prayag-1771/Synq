@@ -22,7 +22,9 @@ initializeSubscribers();
 
 const app = express();
 const server = http.createServer(app);
-const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['http://localhost:3000'];
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? [process.env.FRONTEND_URL, 'https://synq-wcbp.vercel.app'] 
+  : ['http://localhost:3000', 'https://synq-wcbp.vercel.app'];
 
 const io = new Server(server, {
   cors: {
