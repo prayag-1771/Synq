@@ -12,6 +12,7 @@ import { aiService } from '../services/aiService';
 import { webrtcService } from '../services/webrtcService';
 import PinModal from '../components/PinModal';
 import CallModal from '../components/CallModal';
+import SharedNotes from '../components/SharedNotes';
 import {
   MessageSquare,
   Search,
@@ -28,6 +29,7 @@ import {
   Wand2,
   Sparkles,
   Video,
+  FileText,
   Check,
   CheckCheck
 } from 'lucide-react';
@@ -49,6 +51,7 @@ export default function ChatPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
+  const [showSharedNotes, setShowSharedNotes] = useState(false);
   
   // AI State
   const [summary, setSummary] = useState<string | null>(null);
@@ -753,6 +756,19 @@ export default function ChatPage() {
                 </div>
               </div>
               
+              {/* Shared Notes / Canvas Toggle */}
+              <button
+                onClick={() => setShowSharedNotes(!showSharedNotes)}
+                className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 ${
+                  showSharedNotes 
+                  ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40' 
+                  : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border-indigo-500/20'
+                }`}
+                title="Shared Canvas"
+              >
+                <FileText className="w-5 h-5" />
+              </button>
+
               {/* Call Button */}
               {selectedChat.otherUser?.id && (
                 <button
@@ -764,9 +780,13 @@ export default function ChatPage() {
                 </button>
               )}
             </div>
-
-            {/* Chat Pane Message History */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0 custom-scrollbar">
+            
+            {/* Split Pane Container */}
+            <div className="flex-1 flex overflow-hidden">
+              {/* Main Chat Content */}
+              <div className="flex-1 flex flex-col min-w-0 bg-slate-950/80">
+                {/* Chat Pane Message History */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0 custom-scrollbar">
               {/* Catch Me Up AI Action */}
               {messages.length > 5 && (
                 <div className="flex justify-center mb-6">
