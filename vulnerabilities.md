@@ -172,14 +172,14 @@ model Message {
 
 ---
 
-### MED-4: `getAllUsers` Endpoint Returns All Users Without Pagination
+### MED-4: `getAllUsers` Endpoint Returns All Users Without Pagination (SOLVED)
 **File:** [auth.controller.ts:166-189](file:///g:/VSC_NEW/Synq/synq-server/src/controllers/auth.controller.ts#L166-L189)  
 **Problem:** Returns every user in the database. At scale (10k+ users), this will be extremely slow and leaks the entire user directory.  
 **Fix:** Add pagination and search filtering (e.g., `?search=john&limit=20&cursor=...`).
 
 ---
 
-### MED-5: Sync Endpoint Has No Pagination or Limit
+### MED-5: Sync Endpoint Has No Pagination or Limit (SOLVED)
 **File:** [chat.controller.ts](file:///g:/VSC_NEW/Synq/synq-server/src/controllers/chat.controller.ts) (the `syncMessages` function)  
 **Problem:** The `/chats/sync` endpoint fetches ALL messages since `lastSync` with no limit. If a user was offline for weeks, this could return thousands of messages in a single response.  
 **Fix:** Add `take: 500` to the Prisma query and return a `hasMore` flag so the client can paginate.

@@ -243,8 +243,9 @@ export const syncMessages = async (req: AuthenticatedRequest, res: Response) => 
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const { lastSync } = req.query;
+    const { lastSync, limit = '500' } = req.query;
     const userId = req.user.userId;
+    const parsedLimit = parseInt(limit as string, 10);
 
     if (!lastSync) {
       return res.status(400).json({ message: 'lastSync query parameter is required' });
@@ -275,9 +276,23 @@ export const syncMessages = async (req: AuthenticatedRequest, res: Response) => 
       orderBy: {
         createdAt: 'asc',
       },
+      take: parsedLimit + 1, // Fetch one extra to check if there are more
     });
 
-    return res.status(200).json(newMessages);
+    let hasMore = false;
+    let nextSync = null;
+
+    if (newMessages.length > parsedLimit) {
+      hasMore = true;
+      const nextMessage = newMessages.pop(); // Remove the extra message
+      nextSync = newMessages[newMessages.length - 1].createdAt.toISOString();
+    }
+
+    return res.status(200).json({
+      messages: newMessages,
+      hasMore,
+      nextSync,
+    });
   } catch (error) {
     console.error('Sync messages error:', error);
     return res.status(500).json({ message: 'Internal server error' });

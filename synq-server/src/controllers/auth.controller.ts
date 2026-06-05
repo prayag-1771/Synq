@@ -231,10 +231,27 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
+    const limit = parseInt(req.query.limit as string) || 20;
+    const cursor = req.query.cursor as string;
+    const search = req.query.search as string;
+
+    const whereClause: any = {
+      id: { not: req.user.userId },
+    };
+
+    if (search) {
+      whereClause.OR = [
+        { username: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
     const users = await prisma.user.findMany({
-      where: {
-        id: { not: req.user.userId },
-      },
+      where: whereClause,
+      take: limit + 1, // Fetch one extra to determine if there's a next page
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0, // Skip the cursor itself
+      orderBy: { username: 'asc' },
       select: {
         id: true,
         username: true,
@@ -243,7 +260,16 @@ export const getAllUsers = async (req: AuthenticatedRequest, res: Response) => {
       },
     });
 
-    return res.status(200).json(users);
+    let nextCursor = null;
+    if (users.length > limit) {
+      const nextItem = users.pop(); // Remove the extra item
+      nextCursor = nextItem!.id;
+    }
+
+    return res.status(200).json({
+      users,
+      nextCursor,
+    });
   } catch (error) {
     console.error('Get all users error:', error);
     return res.status(500).json({ message: 'Internal server error' });
