@@ -321,6 +321,78 @@ export default function ChatPage() {
     }
   };
 
+  const executeSlashCommand = async (content: string, chatId: string): Promise<boolean> => {
+    const parts = content.split(' ');
+    const command = parts[0].toLowerCase();
+    const args = parts.slice(1).join(' ');
+
+    const recognizedCommands = ['/summarize', '/search', '/translate', '/explain', '/todo'];
+    if (!recognizedCommands.includes(command)) return false;
+
+    // It's a recognized command, so we intercept it.
+    
+    // 1. Generate a temporary ID for the local AI message
+    const tempId = crypto.randomUUID();
+    
+    // 2. Insert a "thinking" message locally
+    await localDb.messages.add({
+      id: tempId,
+      chatId,
+      senderId: 'SYSTEM_AI',
+      senderName: 'Synq AI',
+      content: `*Running command: ${command}...*`,
+      createdAt: new Date().toISOString(),
+      status: 'SENT'
+    });
+
+    try {
+      let aiResponse = '';
+
+      switch (command) {
+        case '/summarize':
+          // Fetch last 50 msgs for this chat from localDb
+          const recentMsgs = await localDb.messages
+            .where('chatId')
+            .equals(chatId)
+            .sortBy('createdAt');
+          aiResponse = await aiService.generateSummary(recentMsgs.slice(-50));
+          break;
+        case '/search':
+          if (!args) aiResponse = 'Usage: `/search <query>`';
+          else {
+            const results = await aiService.semanticSearch(args, 3);
+            if (results.length === 0) aiResponse = 'No results found.';
+            else {
+              aiResponse = `**Top Search Results:**\n\n` + results.map((r: any) => 
+                `> "${r.content}" — *${r.senderName} (${Math.round(r.confidence * 100)}%)*`
+              ).join('\n\n');
+            }
+          }
+          break;
+        case '/translate':
+          const langMatch = args.match(/^(\w+)\s+(.+)$/);
+          if (!langMatch) aiResponse = 'Usage: `/translate <language> <text>`\nExample: `/translate spanish Hello world`';
+          else aiResponse = await aiService.translateText(langMatch[2], langMatch[1]);
+          break;
+        case '/explain':
+          if (!args) aiResponse = 'Usage: `/explain <code or concept>`';
+          else aiResponse = await aiService.explainContext(args);
+          break;
+        case '/todo':
+          aiResponse = await aiService.extractTodos();
+          break;
+      }
+
+      // Update the local message with the final response
+      await localDb.messages.update(tempId, { content: aiResponse });
+
+    } catch (err) {
+      await localDb.messages.update(tempId, { content: '❌ *Failed to execute AI command.*' });
+    }
+
+    return true;
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim() || !selectedChatId || !user) return;
@@ -334,6 +406,12 @@ export default function ChatPage() {
     }
     socketService.sendTypingStatus(selectedChatId, false);
     setIsTyping(false);
+
+    // AI Command Interception
+    if (content.startsWith('/')) {
+      const isCommand = await executeSlashCommand(content, selectedChatId);
+      if (isCommand) return; // intercepted!
+    }
 
     // Call local database first & optimistically emit
     await socketService.sendMessageOptimistic(
@@ -739,6 +817,28 @@ export default function ChatPage() {
                   const isMe = message.senderId === user.id;
                   const isSending = message.status === 'SENDING';
                   const isFailed = message.status === 'FAILED';
+                  const isAI = message.senderId === 'SYSTEM_AI';
+
+                  if (isAI) {
+                    return (
+                      <div key={message.id} className="flex gap-3 max-w-[85%] mr-auto group">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg border border-white/10 self-end mb-1">
+                          <BrainCircuit className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex flex-col">
+                          <div className="px-5 py-3 rounded-2xl rounded-bl-none text-sm shadow-xl relative bg-slate-900 border border-indigo-500/30 text-indigo-50/90 overflow-hidden">
+                            <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
+                              <Sparkles className="w-16 h-16" />
+                            </div>
+                            <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider mb-1 block flex items-center gap-1.5">
+                              <Wand2 className="w-3 h-3" /> Synq AI Command
+                            </span>
+                            <p className="whitespace-pre-wrap break-words leading-relaxed relative z-10">{message.content}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div

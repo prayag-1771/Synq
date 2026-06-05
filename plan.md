@@ -223,8 +223,8 @@ Message Input → Regex Command Parser → Command Router → Tool Orchestration
 | :--- | :--- | :---: | :---: |
 | **Phase 1: Event Bus** | Implement `src/events/eventBus.ts` using Node EventEmitter + Redis PubSub. | **Very High** | (DONE) |
 | **Phase 2: pgvector Setup**| Install pgvector, add Prisma schema embeddings table, write search controller. | **Very High** | (DONE) |
-| **Phase 3: AI Summaries** | Write prompt template + route using Ollama/Groq to compile chat summaries. | **High** | Pending |
-| **Phase 3: Commands** | Write basic slash command parser for chat inputs. | **High** | Pending |
+| **Phase 3: AI Summaries** | Write prompt template + route using Ollama/Groq to compile chat summaries. | **High** | (DONE) |
+| **Phase 3: Commands** | Write basic slash command parser for chat inputs. | **High** | (DONE) |
 | **Phase 5: Webhooks** | Build custom outbound webhook poster for n8n tasks. | **High** | Pending |
 
 ### 🚫 DO NOT BUILD YET
