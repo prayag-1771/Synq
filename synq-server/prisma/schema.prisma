@@ -18,6 +18,7 @@ model User {
   publicKey           String?           // For E2EE key exchange
   encryptedPrivateKey String?           // Encrypted with PIN-derived key for backup
   keySalt             String?           // Salt used for deriving the key from PIN
+  status              String            @default("offline")
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   participants        ChatParticipant[]

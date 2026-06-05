@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '../../stores/authStore';
 import { apiService } from '../../services/apiService';
+import { generateKeyPair, generateSalt, deriveKeyFromPin, encryptPrivateKey } from '../../services/cryptoService';
 import { MessageSquare, Mail, User, Lock, Loader2, ArrowRight } from 'lucide-react';
 
 export default function RegisterPage() {
@@ -33,10 +34,23 @@ export default function RegisterPage() {
     setError('');
 
     try {
+      // 1. Generate E2EE Keys locally
+      const { publicKey, privateKey } = await generateKeyPair();
+      const salt = await generateSalt();
+      const derivedKey = await deriveKeyFromPin(password, salt);
+      const encryptedPrivateKey = await encryptPrivateKey(privateKey, derivedKey);
+
+      // Store the plaintext private key in sessionStorage for immediate use
+      sessionStorage.setItem('synq_pk', privateKey);
+
+      // 2. Send keys to the server
       const response = await apiService.post('/auth/register', {
         username,
         email,
         password,
+        publicKey,
+        encryptedPrivateKey,
+        keySalt: salt
       });
 
       const data = await response.json();
