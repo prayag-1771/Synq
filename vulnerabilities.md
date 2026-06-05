@@ -136,7 +136,7 @@ const luaScript = `
 
 ---
 
-### HIGH-6: Auth Store Persists Tokens in LocalStorage (Unencrypted)
+### HIGH-6: Auth Store Persists Tokens in LocalStorage (Unencrypted) (SOLVED)
 **File:** [authStore.ts:32-34](file:///g:/VSC_NEW/Synq/synq-web/src/stores/authStore.ts#L32-L34)  
 **Problem:** Zustand's `persist` middleware defaults to `localStorage`, which stores `accessToken`, `refreshToken`, and user data in plaintext. Any XSS attack can steal these tokens.  
 **Mitigation:** Consider using `sessionStorage` instead, or encrypting the persisted data. For highest security, use `HttpOnly` cookies for tokens instead of client-side storage.
@@ -158,7 +158,7 @@ model Message {
 
 ---
 
-### MED-2: WebRTC Uses Only Public STUN Servers (No TURN)
+### MED-2: WebRTC Uses Only Public STUN Servers (No TURN) (SOLVED)
 **File:** [webrtcService.ts:9-14](file:///g:/VSC_NEW/Synq/synq-web/src/services/webrtcService.ts#L9-L14)  
 **Problem:** Only STUN servers (`stun.l.google.com`, `global.stun.twilio.com`) are configured. If both users are behind symmetric NATs or restrictive firewalls, peer-to-peer connections will fail silently.  
 **Fix:** Add a TURN server (e.g., Twilio, Metered.ca, or self-hosted coturn) as a fallback relay.

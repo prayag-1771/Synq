@@ -358,7 +358,15 @@ export default function ChatPage() {
     }, 2000);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const { refreshToken } = useAuthStore.getState();
+      if (refreshToken) {
+        await apiService.post('/auth/logout', { refreshToken });
+      }
+    } catch (error) {
+      console.error('Failed to logout on server:', error);
+    }
     socketService.disconnect();
     clearAuth();
     router.push('/login');
