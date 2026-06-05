@@ -1004,6 +1004,16 @@ export default function ChatPage() {
                 </button>
               </form>
             </div>
+          </div>
+          
+          {/* Shared Canvas / Collaborative Editor */}
+              {showSharedNotes && selectedChatId && (
+                <SharedNotes 
+                  chatId={selectedChatId} 
+                  onClose={() => setShowSharedNotes(false)} 
+                />
+              )}
+            </div>
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">

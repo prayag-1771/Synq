@@ -36,7 +36,7 @@ export default function SharedNotes({ chatId, onClose }: { chatId: string, onClo
       },
     },
     extensions: [
-      StarterKit.configure({ history: false }), // History is handled by Yjs CRDTs
+      StarterKit.configure({ history: false } as any), // History is handled by Yjs CRDTs
       provider ? Collaboration.configure({ document: provider.doc }) : undefined,
       provider ? CollaborationCursor.configure({
         provider: provider,

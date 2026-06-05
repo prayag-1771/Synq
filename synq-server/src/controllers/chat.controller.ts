@@ -55,10 +55,10 @@ export const getChats = async (req: AuthenticatedRequest, res: Response) => {
     });
 
     // Format chats for frontend
-    const formattedChats = chats.map((chat) => {
+    const formattedChats = chats.map((chat: any) => {
       // Find the recipient (the other participant) for direct chats
       const otherParticipant = chat.participants.find(
-        (p) => p.userId !== userId
+        (p: any) => p.userId !== userId
       )?.user || null;
 
       return {
@@ -124,7 +124,7 @@ export const getOrCreateDirectChat = async (req: AuthenticatedRequest, res: Resp
 
     if (existingChat) {
       const otherParticipant = existingChat.participants.find(
-        (p) => p.userId !== userId
+        (p: any) => p.userId !== userId
       )?.user || null;
 
       return res.status(200).json({
@@ -163,7 +163,7 @@ export const getOrCreateDirectChat = async (req: AuthenticatedRequest, res: Resp
     });
 
     const otherParticipant = newChat.participants.find(
-      (p) => p.userId !== userId
+      (p: any) => p.userId !== userId
     )?.user || null;
 
     // Publish internal event
@@ -260,7 +260,7 @@ export const syncMessages = async (req: AuthenticatedRequest, res: Response) => 
       select: { chatId: true },
     });
 
-    const chatIds = participants.map((p) => p.chatId);
+    const chatIds = participants.map((p: any) => p.chatId);
 
     const newMessages = await prisma.message.findMany({
       where: {

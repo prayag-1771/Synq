@@ -48,7 +48,7 @@ app.use(express.json());
 // Global Rate Limiter
 const limiter = rateLimit({
   store: new RedisStore({
-    sendCommand: (...args: string[]) => redisClient.call(...args),
+    sendCommand: (...args: string[]) => redisClient.call(args[0], ...args.slice(1)) as any,
   }),
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 150, // Limit each IP to 150 requests per window

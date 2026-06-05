@@ -127,7 +127,7 @@ class AiService {
               toolResult = await invoke('search_local_files', { 
                 query: data.args.query, 
                 ext: data.args.ext 
-              });
+              }) as any[];
             } else {
               toolResult = ['Error: Cannot search local files. App is not running in Tauri Desktop environment.'];
             }
