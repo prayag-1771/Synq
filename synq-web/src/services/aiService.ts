@@ -106,6 +106,20 @@ class AiService {
       return 'Sorry, I could not extract tasks right now.';
     }
   }
+  /**
+   * Runs the autonomous Agent with the given prompt
+   */
+  async runAgent(prompt: string, chatId: string): Promise<string> {
+    try {
+      const res = await apiService.post('/ai/agent', { prompt, chatId });
+      if (!res.ok) throw new Error('Failed to run agent');
+      const data = await res.json();
+      return data.response || '';
+    } catch (error) {
+      console.error('Agent Error:', error);
+      return 'Sorry, the agent encountered an error processing your request.';
+    }
+  }
 }
 
 export const aiService = new AiService();

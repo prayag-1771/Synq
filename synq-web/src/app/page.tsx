@@ -326,7 +326,7 @@ export default function ChatPage() {
     const command = parts[0].toLowerCase();
     const args = parts.slice(1).join(' ');
 
-    const recognizedCommands = ['/summarize', '/search', '/translate', '/explain', '/todo'];
+    const recognizedCommands = ['/summarize', '/search', '/translate', '/explain', '/todo', '/agent'];
     if (!recognizedCommands.includes(command)) return false;
 
     // It's a recognized command, so we intercept it.
@@ -339,8 +339,8 @@ export default function ChatPage() {
       id: tempId,
       chatId,
       senderId: 'SYSTEM_AI',
-      senderName: 'Synq AI',
-      content: `*Running command: ${command}...*`,
+      senderName: command === '/agent' ? 'Synq Autonomous Agent' : 'Synq AI',
+      content: command === '/agent' ? `*Agent is thinking...*` : `*Running command: ${command}...*`,
       createdAt: new Date().toISOString(),
       status: 'SENT'
     });
@@ -380,6 +380,10 @@ export default function ChatPage() {
           break;
         case '/todo':
           aiResponse = await aiService.extractTodos(chatId);
+          break;
+        case '/agent':
+          if (!args) aiResponse = 'Usage: `/agent <prompt>`\nExample: `/agent Search for the database URL and save it as a Todo.`';
+          else aiResponse = await aiService.runAgent(args, chatId);
           break;
       }
 
