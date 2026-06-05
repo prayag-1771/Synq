@@ -77,7 +77,7 @@ synq-server/src/
 
 ---
 
-## Phase 2 — AI Memory & Semantic Search
+## Phase 2 — AI Memory & Semantic Search (DONE)
 > [!IMPORTANT]
 > **Priority: Extremely High**  
 > Move beyond keyword searching and implement vector similarity search to let users search by conceptual meaning.
@@ -117,7 +117,7 @@ sequenceDiagram
 
 ---
 
-## Phase 3 — AI Command System
+## Phase 3 — AI Command System (DONE)
 > [!TIP]
 > **Priority: High**  
 > Implement natural language slash commands to let users command the workspace from their chat bar.

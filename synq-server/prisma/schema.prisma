@@ -88,3 +88,19 @@ model MessageEmbedding {
   vector    Unsupported("vector(768)")
   createdAt DateTime @default(now())
 }
+
+model ExtractedTask {
+  id          String   @id @default(uuid())
+  chatId      String
+  messageId   String
+  title       String
+  type        String   // e.g., 'TODO' or 'MEETING'
+  dueDate     DateTime?
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  chat        Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, isCompleted])
+}
