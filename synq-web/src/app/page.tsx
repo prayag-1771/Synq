@@ -23,6 +23,8 @@ import {
   AlertCircle,
   Clock,
   RefreshCw,
+  BrainCircuit,
+  X,
   Wand2,
   Sparkles,
   Video,
@@ -53,6 +55,12 @@ export default function ChatPage() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
   const [isFetchingReplies, setIsFetchingReplies] = useState(false);
+
+  // Semantic Search State
+  const [semanticQuery, setSemanticQuery] = useState('');
+  const [semanticResults, setSemanticResults] = useState<any[]>([]);
+  const [isSearchingSemantic, setIsSearchingSemantic] = useState(false);
+  const [showSemanticModal, setShowSemanticModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -137,6 +145,20 @@ export default function ChatPage() {
       console.error(err);
     } finally {
       setIsFetchingReplies(false);
+    }
+  };
+
+  const handleSemanticSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!semanticQuery.trim()) return;
+    try {
+      setIsSearchingSemantic(true);
+      const results = await aiService.semanticSearch(semanticQuery, 10);
+      setSemanticResults(results);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearchingSemantic(false);
     }
   };
 
@@ -392,6 +414,83 @@ export default function ChatPage() {
     <div className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
       <PinModal />
       <CallModal />
+      
+      {/* Semantic Search Modal */}
+      {showSemanticModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col h-[80vh] animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 p-4 border-b border-slate-800/60">
+              <BrainCircuit className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-lg font-semibold text-slate-100">AI Memory Search</h2>
+              <button 
+                onClick={() => { setShowSemanticModal(false); setSemanticResults([]); setSemanticQuery(''); }}
+                className="ml-auto p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSemanticSearch} className="p-4 border-b border-slate-800/60 bg-slate-900/50">
+              <div className="relative flex items-center">
+                <Search className="absolute left-4 w-5 h-5 text-slate-500" />
+                <input
+                  type="text"
+                  value={semanticQuery}
+                  onChange={(e) => setSemanticQuery(e.target.value)}
+                  placeholder="Ask your memory... e.g., 'What was the password for the database?'"
+                  className="w-full pl-12 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-200 placeholder-slate-500"
+                />
+                <button
+                  type="submit"
+                  disabled={isSearchingSemantic || !semanticQuery.trim()}
+                  className="absolute right-2 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+                >
+                  {isSearchingSemantic ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                </button>
+              </div>
+            </form>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {semanticResults.length === 0 && !isSearchingSemantic && (
+                <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                  <BrainCircuit className="w-12 h-12 mb-3 opacity-20" />
+                  <p>Search by meaning, not just keywords.</p>
+                </div>
+              )}
+              
+              {semanticResults.map((result) => (
+                <div 
+                  key={result.id} 
+                  onClick={() => {
+                    handleStartChat(result.chatId === user?.id ? result.senderId : result.chatId);
+                    setShowSemanticModal(false);
+                  }}
+                  className="p-4 rounded-xl border border-slate-800/60 bg-slate-900/40 hover:bg-slate-800/60 cursor-pointer transition-colors group relative"
+                >
+                  <div className="flex items-start gap-3">
+                    <img src={result.senderAvatar} alt="" className="w-8 h-8 rounded-lg" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-sm text-slate-200">{result.senderName}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            {Math.round(result.confidence * 100)}% match
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(result.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-300 line-clamp-3">{result.content}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background radial effects */}
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/20 via-slate-950 to-slate-950 pointer-events-none" />
 
@@ -415,13 +514,22 @@ export default function ChatPage() {
               </span>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="p-2 rounded-lg bg-slate-800/40 hover:bg-red-500/10 hover:text-red-400 border border-slate-800 hover:border-red-500/20 transition-all duration-200"
-            title="Log Out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowSemanticModal(true)}
+              className="p-2 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 transition-all duration-200"
+              title="Memory Search"
+            >
+              <BrainCircuit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg bg-slate-800/40 hover:bg-red-500/10 hover:text-red-400 border border-slate-800 hover:border-red-500/20 transition-all duration-200"
+              title="Log Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Search / Directory */}

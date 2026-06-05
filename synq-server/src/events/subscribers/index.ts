@@ -1,6 +1,9 @@
 import { eventBus } from '../eventBus';
+import { initAISubscriber } from './ai.subscriber';
 
 export const initializeSubscribers = () => {
+  // Initialize dedicated module subscribers
+  initAISubscriber();
   // Chat & Message Event Logging
   eventBus.subscribe('chat.created', (data, event) => {
     console.log(`[EVENT BUS] 💬 Chat Created: [ChatID: ${data.chatId}] by [User: ${data.creatorId}] - Type: ${data.type}`);

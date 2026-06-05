@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { generateSummary, generateSmartReplies } from '../controllers/ai.controller';
+import { 
+  generateSummary, 
+  generateSmartReplies, 
+  semanticSearch, 
+  translateText, 
+  explainContext, 
+  extractTodos 
+} from '../controllers/ai.controller';
 import { authenticateJWT } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -9,5 +16,17 @@ router.post('/summarize', authenticateJWT, generateSummary);
 
 // Endpoint for generating smart replies
 router.post('/replies', authenticateJWT, generateSmartReplies);
+
+// Endpoint for vector-based semantic search
+router.get('/search', authenticateJWT, semanticSearch);
+
+// Endpoint for translation
+router.post('/translate', authenticateJWT, translateText);
+
+// Endpoint for explanation
+router.post('/explain', authenticateJWT, explainContext);
+
+// Endpoint for extracting tasks
+router.get('/todo', authenticateJWT, extractTodos);
 
 export default router;

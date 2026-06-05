@@ -45,6 +45,67 @@ class AiService {
       return [];
     }
   }
+
+  /**
+   * Performs a vector similarity search using pgvector on the backend
+   */
+  async semanticSearch(query: string, limit = 5): Promise<any[]> {
+    if (!query) return [];
+
+    try {
+      const res = await apiService.get(`/ai/search?query=${encodeURIComponent(query)}&limit=${limit}`);
+      if (!res.ok) throw new Error('Failed to perform semantic search');
+      const data = await res.json();
+      return data.results || [];
+    } catch (error) {
+      console.error('AI Semantic Search Error:', error);
+      return [];
+    }
+  }
+  /**
+   * Translates text to a target language
+   */
+  async translateText(text: string, targetLanguage: string): Promise<string> {
+    try {
+      const res = await apiService.post('/ai/translate', { text, targetLanguage });
+      if (!res.ok) throw new Error('Failed to translate');
+      const data = await res.json();
+      return data.translation || '';
+    } catch (error) {
+      console.error('AI Translation Error:', error);
+      return 'Sorry, I could not translate that right now.';
+    }
+  }
+
+  /**
+   * Explains a technical concept or block of code
+   */
+  async explainContext(text: string): Promise<string> {
+    try {
+      const res = await apiService.post('/ai/explain', { text });
+      if (!res.ok) throw new Error('Failed to explain');
+      const data = await res.json();
+      return data.explanation || '';
+    } catch (error) {
+      console.error('AI Explanation Error:', error);
+      return 'Sorry, I could not generate an explanation right now.';
+    }
+  }
+
+  /**
+   * Extracts tasks/todos from the current channel context
+   */
+  async extractTodos(): Promise<string> {
+    try {
+      const res = await apiService.get('/ai/todo');
+      if (!res.ok) throw new Error('Failed to extract todos');
+      const data = await res.json();
+      return data.todos || '';
+    } catch (error) {
+      console.error('AI Todo Error:', error);
+      return 'Sorry, I could not extract tasks right now.';
+    }
+  }
 }
 
 export const aiService = new AiService();
