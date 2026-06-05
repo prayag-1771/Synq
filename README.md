@@ -8,10 +8,12 @@ This repository houses both the backend API server (`synq-server`) and the Next.
 
 ## ✨ Core Pillars & Features
 
-- **⚡ Fast & Real-time**: Sub-millisecond message delivery using WebSockets (Socket.IO) backed by a robust pub/sub architecture.
-- **🔒 Secure First**: Session validation with JWT access/refresh tokens. Designed to scale into full End-to-End Encryption (E2EE) and encrypted local storage.
-- **💬 Core MVP Messaging**: One-to-one messaging, live typing indicators, active presence status tracking, and message delivery states.
-- **☁️ Cloud DB Persistence**: Powered by Neon PostgreSQL with connection-pooling integration via Prisma.
+- **⚡ Fast & Real-time**: Sub-millisecond message delivery using WebSockets (Socket.IO) and an Event-Driven backend architecture.
+- **🧠 Semantic Memory Engine**: Replaces traditional keyword search with `pgvector` and Gemini Embeddings for mathematically accurate meaning-based search.
+- **🤖 Autonomous AI Agent**: Built-in ReAct Agent powered by Gemini Native Function Calling. Use `/agent` to have the AI search your history and execute tasks for you.
+- **⚡ AI Slash Commands**: Type `/explain`, `/translate`, `/summarize`, or `/todo` in the chat to instantly run complex LLM tasks locally.
+- **⚙️ n8n Automation Integration**: Background workers silently analyze your conversations for action items and meetings, extracting them and triggering downstream n8n Webhooks automatically.
+- **🔒 Secure First**: JWT access/refresh tokens with a hardened security model.
 
 ---
 
@@ -26,10 +28,12 @@ This repository houses both the backend API server (`synq-server`) and the Next.
 
 ### Backend (`synq-server`)
 - **Runtime**: Node.js, Express, TypeScript
-- **Database**: Neon PostgreSQL
+- **Database**: Neon PostgreSQL with `pgvector` extension
+- **AI Models**: Google Gemini `1.5-flash` (Reasoning & Agents) and `text-embedding-004` (Semantic Search)
 - **ORM**: Prisma Client
 - **Authentication**: JWT (JSON Web Tokens) with auto-rotating refresh tokens and Bcrypt password hashing
-- **Real-time Engine**: Socket.IO
+- **Real-time Engine**: Socket.IO & Node EventEmitter
+- **Automation**: Outbound HTTP Webhooks mapped to n8n pipelines
 
 ---
 
@@ -91,6 +95,8 @@ PORT=5000
 DATABASE_URL="YOUR_NEON_POSTGRESQL_CONNECTION_URL"
 JWT_SECRET="generate-a-secure-random-key-here"
 JWT_REFRESH_SECRET="generate-another-secure-random-key-here"
+GEMINI_API_KEY="your-google-gemini-api-key"
+N8N_WEBHOOK_URL="optional-webhook-url-for-automation"
 ```
 
 ### Step 3: Run Database Migrations
