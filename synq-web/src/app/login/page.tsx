@@ -49,12 +49,15 @@ export default function LoginPage() {
       // 1. If the user has E2EE keys, decrypt the private key locally
       if (data.user.encryptedPrivateKey && data.user.keySalt && data.user.publicKey) {
         try {
-          const derivedKey = await deriveKeyFromPin(password, data.user.keySalt);
+          const derivedKey = await Promise.race([
+            deriveKeyFromPin(password, data.user.keySalt),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Cryptography engine failed to load (WASM timeout)')), 5000))
+          ]);
           const decryptedPk = await decryptPrivateKey(data.user.encryptedPrivateKey, derivedKey);
           sessionStorage.setItem('synq_pk', decryptedPk);
           sessionStorage.setItem('synq_pub', data.user.publicKey);
           setKeys(decryptedPk, data.user.publicKey);
-        } catch (cryptoErr) {
+        } catch (cryptoErr: any) {
           console.error('Failed to decrypt private key:', cryptoErr);
           // Don't block login, but E2EE messages will be unreadable
         }

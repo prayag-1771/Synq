@@ -36,11 +36,24 @@ export default function RegisterPage() {
     setError('');
 
     try {
+      console.log('[Register] Starting cryptographic key generation...');
+      
       // 1. Generate E2EE Keys locally
-      const { publicKey, privateKey } = await generateKeyPair();
+      const { publicKey, privateKey } = await Promise.race([
+        generateKeyPair(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Cryptography engine failed to load (WASM timeout)')), 5000))
+      ]);
+      
+      console.log('[Register] Keys generated. Generating salt...');
       const salt = await generateSalt();
+      
+      console.log('[Register] Deriving PIN...');
       const derivedKey = await deriveKeyFromPin(password, salt);
+      
+      console.log('[Register] Encrypting Private Key...');
       const encryptedPrivateKey = await encryptPrivateKey(privateKey, derivedKey);
+      
+      console.log('[Register] Crypto complete. Sending to server...');
 
       // Store the plaintext private key in sessionStorage and Zustand for immediate use
       sessionStorage.setItem('synq_pk', privateKey);
