@@ -217,6 +217,22 @@ export const setupSocketHandlers = (io: Server) => {
       socket.to(targetUserId).emit('webrtc:call-ended', { enderId: userId });
     });
 
+    // 7. Collaborative Document Sync (Yjs CRDTs)
+    socket.on('doc:update', ({ chatId, update }: { chatId: string, update: string }) => {
+      // Broadcast the E2EE encrypted Yjs update to everyone else in the chat room
+      socket.to(chatId).emit('doc:update', { chatId, update, senderId: userId });
+    });
+
+    socket.on('doc:cursor', ({ chatId, cursor }: { chatId: string, cursor: string }) => {
+      // Broadcast the E2EE encrypted cursor location to everyone else in the chat room
+      socket.to(chatId).emit('doc:cursor', { chatId, cursor, senderId: userId });
+    });
+
+    socket.on('doc:request-sync', ({ chatId }: { chatId: string }) => {
+      // Ask other participants to broadcast their current document state
+      socket.to(chatId).emit('doc:request-sync', { chatId, requesterId: userId });
+    });
+
     // Handle Disconnect
     socket.on('disconnect', async () => {
       console.log(`User disconnected: ${username} - Socket: ${socket.id}`);
