@@ -39,9 +39,22 @@ const createTaskDeclaration: FunctionDeclaration = {
   },
 };
 
-export const executeAgentPrompt = async (prompt: string, chatId: string, userId: string): Promise<string> => {
+const searchLocalFilesDeclaration: FunctionDeclaration = {
+  name: 'searchLocalFiles',
+  description: "Searches the user's local computer for files. Use this ONLY when the user explicitly asks to find a file, document, image, or spreadsheet on their local hard drive.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      query: { type: SchemaType.STRING, description: 'The filename or keyword to search for.' },
+      ext: { type: SchemaType.STRING, description: 'Optional file extension (e.g. .pdf, .xlsx).' }
+    },
+    required: ['query'],
+  },
+};
+
+export const executeAgentPrompt = async (prompt: string, chatId: string, userId: string): Promise<any> => {
   if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'dummy_key') {
-    return 'Agent is offline. GEMINI_API_KEY is not configured.';
+    return { response: 'Agent is offline. GEMINI_API_KEY is not configured.' };
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -51,7 +64,7 @@ export const executeAgentPrompt = async (prompt: string, chatId: string, userId:
     model: 'gemini-1.5-flash',
     tools: [
       {
-        functionDeclarations: [searchMessagesDeclaration, createTaskDeclaration],
+        functionDeclarations: [searchMessagesDeclaration, createTaskDeclaration, searchLocalFilesDeclaration],
       },
     ],
   });
@@ -73,12 +86,10 @@ export const executeAgentPrompt = async (prompt: string, chatId: string, userId:
         const { query } = call.args as any;
         console.log(`[Agent] Calling Tool: searchMessages("${query}")`);
         
-        // Generate embedding for search
         const embedModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
         const embedRes = await embedModel.embedContent(query);
         const vectorString = `[${embedRes.embedding.values.join(',')}]`;
 
-        // Execute Vector Search
         const matches: any[] = await prisma.$queryRawUnsafe(`
           SELECT m.content, u.username as "senderName", 1 - (e.vector <=> $1::vector) as similarity
           FROM "MessageEmbedding" e
@@ -95,7 +106,6 @@ export const executeAgentPrompt = async (prompt: string, chatId: string, userId:
         const { title, type, dueDate } = call.args as any;
         console.log(`[Agent] Calling Tool: createTask("${title}")`);
 
-        // Insert into database
         const savedTask = await prisma.extractedTask.create({
           data: {
             chatId,
@@ -106,7 +116,6 @@ export const executeAgentPrompt = async (prompt: string, chatId: string, userId:
           }
         });
 
-        // Fire webhook
         if (process.env.N8N_WEBHOOK_URL) {
           try {
             await fetch(process.env.N8N_WEBHOOK_URL, {
@@ -118,6 +127,17 @@ export const executeAgentPrompt = async (prompt: string, chatId: string, userId:
         }
 
         toolResultStr = JSON.stringify({ success: true, taskId: savedTask.id, message: 'Task created and dispatched to webhooks.' });
+      }
+      else if (call.name === 'searchLocalFiles') {
+        const { query, ext } = call.args as any;
+        console.log(`[Agent] Calling Tool: searchLocalFiles("${query}", "${ext || ''}")`);
+        
+        // PAUSE: Return the action requirement to the client
+        return {
+          clientActionRequired: 'searchLocalFiles',
+          args: { query, ext: ext || '' },
+          history: await chatSession.getHistory()
+        };
       }
 
       // 3. Send the tool execution result back to Gemini so it can answer the user
@@ -131,9 +151,33 @@ export const executeAgentPrompt = async (prompt: string, chatId: string, userId:
       responseText = finalResult.response.text();
     }
 
-    return responseText.trim();
+    return { response: responseText.trim() };
   } catch (error) {
     console.error('[Agent] Execution error:', error);
-    return 'Sorry, I encountered an error while trying to process your request.';
+    return { response: 'Sorry, I encountered an error while trying to process your request.' };
+  }
+};
+
+export const resumeAgentPrompt = async (history: any[], toolName: string, toolResult: any): Promise<any> => {
+  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'dummy_key') {
+    return { response: 'Agent is offline. GEMINI_API_KEY is not configured.' };
+  }
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const chatSession = model.startChat({ history });
+
+  try {
+    const finalResult = await chatSession.sendMessage([{
+      functionResponse: {
+        name: toolName,
+        response: { result: JSON.stringify(toolResult) }
+      }
+    }]);
+    
+    return { response: finalResult.response.text().trim() };
+  } catch (error) {
+    console.error('[Agent Resume] Execution error:', error);
+    return { response: 'Sorry, I encountered an error resuming your request.' };
   }
 };

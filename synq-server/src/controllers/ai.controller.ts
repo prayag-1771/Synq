@@ -248,7 +248,7 @@ export const extractTodos = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-import { executeAgentPrompt } from '../services/agent.service';
+import { executeAgentPrompt, resumeAgentPrompt } from '../services/agent.service';
 
 export const runAgent = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -262,9 +262,25 @@ export const runAgent = async (req: Request, res: Response): Promise<void> => {
     const userId = req.user.userId;
 
     const response = await executeAgentPrompt(prompt, chatId, userId);
-    res.status(200).json({ response });
+    res.status(200).json(response);
   } catch (error) {
     console.error('Agent runner error:', error);
     res.status(500).json({ error: 'Failed to run agent' });
+  }
+};
+
+export const resumeAgent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { history, toolName, toolResult } = req.body;
+    if (!history || !toolName || toolResult === undefined) {
+      res.status(400).json({ error: 'Missing resume parameters' });
+      return;
+    }
+
+    const response = await resumeAgentPrompt(history, toolName, toolResult);
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Agent resume error:', error);
+    res.status(500).json({ error: 'Failed to resume agent' });
   }
 };

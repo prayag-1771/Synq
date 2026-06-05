@@ -6,7 +6,8 @@ import {
   translateText, 
   explainContext, 
   extractTodos,
-  runAgent
+  runAgent,
+  resumeAgent
 } from '../controllers/ai.controller';
 import { authenticateJWT } from '../middleware/auth.middleware';
 
@@ -32,5 +33,8 @@ router.get('/todo', authenticateJWT, extractTodos);
 
 // Endpoint for executing the autonomous agent
 router.post('/agent', authenticateJWT, runAgent);
+
+// Endpoint for resuming the autonomous agent after client tool execution
+router.post('/agent/resume', authenticateJWT, resumeAgent);
 
 export default router;
