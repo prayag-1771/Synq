@@ -7,7 +7,7 @@ export const redisClient = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
 });
 
-// Pub/Sub clients for Socket.IO Redis adapter
+// Pub/Sub clients for Socket.IO Redis adapter (DEDICATED — do not share)
 export const pubClient = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
 });
@@ -16,11 +16,22 @@ export const subClient = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
 });
 
+// Pub/Sub clients for Internal Event Bus (DEDICATED — separate from Socket.IO)
+export const eventPubClient = new Redis(redisUrl, {
+  maxRetriesPerRequest: null,
+});
+
+export const eventSubClient = new Redis(redisUrl, {
+  maxRetriesPerRequest: null,
+});
+
 redisClient.on('connect', () => console.log('Redis Client connected'));
 redisClient.on('error', (err) => console.error('Redis Client Error:', err));
 
 pubClient.on('error', (err) => console.error('Redis Pub Client Error:', err));
 subClient.on('error', (err) => console.error('Redis Sub Client Error:', err));
+eventPubClient.on('error', (err) => console.error('Redis Event Pub Client Error:', err));
+eventSubClient.on('error', (err) => console.error('Redis Event Sub Client Error:', err));
 
 const PRESENCE_KEY = 'synq:active_users';
 

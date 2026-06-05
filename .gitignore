@@ -23,3 +23,13 @@ pnpm-debug.log*
 node_modules/
 .pnp
 .pnp.*
+
+# Environment files — NEVER commit secrets
+.env
+.env.*
+!.env.example
+
+# Build outputs
+dist/
+.next/
+out/

@@ -4,8 +4,11 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../db/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'synq_jwt_access_secret_token_2026_modern';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'synq_jwt_refresh_secret_token_2026_modern';
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
+  throw new Error('FATAL: JWT_SECRET and JWT_REFRESH_SECRET environment variables are required');
+}
 
 const generateTokens = (user: { id: string; username: string; email: string }) => {
   const payload = { userId: user.id, username: user.username, email: user.email };

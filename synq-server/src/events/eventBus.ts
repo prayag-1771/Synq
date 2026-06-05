@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import crypto from 'crypto';
-import { pubClient, subClient } from '../db/redis';
+import { eventPubClient, eventSubClient } from '../db/redis';
 import { AppEvent, EventPayloads } from './types';
 
 class SynqEventBus extends EventEmitter {
@@ -13,7 +13,7 @@ class SynqEventBus extends EventEmitter {
 
   private setupRedisSubscription() {
     // Subscribe to the Redis channel for cross-instance events
-    subClient.subscribe(this.redisChannel, (err) => {
+    eventSubClient.subscribe(this.redisChannel, (err) => {
       if (err) {
         console.error('Failed to subscribe to Redis event channel:', err);
       } else {
@@ -22,7 +22,7 @@ class SynqEventBus extends EventEmitter {
     });
 
     // Listen for messages from Redis (which could originate from any server instance)
-    subClient.on('message', (channel, message) => {
+    eventSubClient.on('message', (channel, message) => {
       if (channel === this.redisChannel) {
         try {
           const parsedEvent: AppEvent = JSON.parse(message);
@@ -48,7 +48,7 @@ class SynqEventBus extends EventEmitter {
     };
 
     try {
-      await pubClient.publish(this.redisChannel, JSON.stringify(event));
+      await eventPubClient.publish(this.redisChannel, JSON.stringify(event));
     } catch (err) {
       console.error(`Failed to publish event ${type} to Redis:`, err);
     }

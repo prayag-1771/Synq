@@ -23,7 +23,7 @@ export const authenticateJWT = (
       return res.status(401).json({ message: 'Authentication token missing' });
     }
 
-    jwt.verify(token, process.env.JWT_SECRET || 'synq_jwt_access_secret_token_2026_modern', (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET!, (err, user) => {
       if (err) {
         return res.status(403).json({ message: 'Invalid or expired token' });
       }

@@ -9,7 +9,10 @@ import {
 } from '../db/redis';
 import { eventBus } from '../events/eventBus';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'synq_jwt_access_secret_token_2026_modern';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
 
 interface SocketUser {
   userId: string;
