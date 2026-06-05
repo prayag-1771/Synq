@@ -114,6 +114,41 @@ class AiService {
       const res = await apiService.post('/ai/agent', { prompt, chatId });
       if (!res.ok) throw new Error('Failed to run agent');
       const data = await res.json();
+      
+      // Check if the backend agent paused execution to request a client-side tool execution
+      if (data.clientActionRequired) {
+        if (data.clientActionRequired === 'searchLocalFiles') {
+          let toolResult = [];
+          try {
+            // @ts-ignore
+            if (typeof window !== 'undefined' && window.__TAURI__) {
+              const { invoke } = await import('@tauri-apps/api/core');
+              console.log('[AI Service] Executing Tauri Rust command: search_local_files');
+              toolResult = await invoke('search_local_files', { 
+                query: data.args.query, 
+                ext: data.args.ext 
+              });
+            } else {
+              toolResult = ['Error: Cannot search local files. App is not running in Tauri Desktop environment.'];
+            }
+          } catch (e) {
+            console.error('[AI Service] Tauri invoke failed:', e);
+            toolResult = ['Error: Failed to execute local file search.'];
+          }
+
+          // Resume the agent with the tool results
+          const resumeRes = await apiService.post('/ai/agent/resume', {
+            history: data.history,
+            toolName: 'searchLocalFiles',
+            toolResult
+          });
+          
+          if (!resumeRes.ok) throw new Error('Failed to resume agent');
+          const resumeData = await resumeRes.json();
+          return resumeData.response || '';
+        }
+      }
+
       return data.response || '';
     } catch (error) {
       console.error('Agent Error:', error);
