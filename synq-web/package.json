@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.11.0",
     "@types/libsodium-wrappers": "^0.7.14",
     "dexie": "^4.4.3",
     "dexie-react-hooks": "^4.4.0",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tauri-apps/cli": "^2.11.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

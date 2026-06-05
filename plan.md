@@ -179,7 +179,7 @@ Message Input → Regex Command Parser → Command Router → Tool Orchestration
 
 ---
 
-## Phase 7 — Desktop Companion App (Tauri)
+## Phase 7 — Desktop Companion App (Tauri) (DONE)
 > [!NOTE]
 > **Priority: Medium**  
 > Unlocks indexing files on the user's host operating system.
