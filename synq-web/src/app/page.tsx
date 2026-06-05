@@ -770,15 +770,20 @@ export default function ChatPage() {
               </button>
 
               {/* Call Button */}
-              {selectedChat.otherUser?.id && (
+              {selectedChat.otherUser?.id ? (
                 <button
-                  onClick={() => webrtcService.callUser(selectedChat.otherUser!.id, selectedChat.name)}
+                  onClick={() => {
+                    const otherUserId = selectedChat.otherUser?.id;
+                    if (otherUserId) {
+                      webrtcService.callUser(otherUserId, selectedChat.name);
+                    }
+                  }}
                   className="p-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 transition-all shadow-sm"
                   title="Start Video Call"
                 >
                   <Video className="w-5 h-5" />
                 </button>
-              )}
+              ) : null}
             </div>
             
             {/* Split Pane Container */}
