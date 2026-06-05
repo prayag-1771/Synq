@@ -5,7 +5,8 @@ import {
   semanticSearch, 
   translateText, 
   explainContext, 
-  extractTodos 
+  extractTodos,
+  runAgent
 } from '../controllers/ai.controller';
 import { authenticateJWT } from '../middleware/auth.middleware';
 
@@ -28,5 +29,8 @@ router.post('/explain', authenticateJWT, explainContext);
 
 // Endpoint for extracting tasks
 router.get('/todo', authenticateJWT, extractTodos);
+
+// Endpoint for executing the autonomous agent
+router.post('/agent', authenticateJWT, runAgent);
 
 export default router;

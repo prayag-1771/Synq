@@ -247,3 +247,24 @@ export const extractTodos = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({ error: 'Failed to extract todos' });
   }
 };
+
+import { executeAgentPrompt } from '../services/agent.service';
+
+export const runAgent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { prompt, chatId } = req.body;
+    if (!prompt || !chatId) {
+      res.status(400).json({ error: 'Prompt and chatId are required' });
+      return;
+    }
+
+    // @ts-ignore
+    const userId = req.user.userId;
+
+    const response = await executeAgentPrompt(prompt, chatId, userId);
+    res.status(200).json({ response });
+  } catch (error) {
+    console.error('Agent runner error:', error);
+    res.status(500).json({ error: 'Failed to run agent' });
+  }
+};
