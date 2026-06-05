@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { prisma } from '../db/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
@@ -48,6 +49,15 @@ export const register = async (req: Request, res: Response) => {
     });
 
     const { accessToken, refreshToken } = generateTokens(user);
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      }
+    });
 
     return res.status(201).json({
       message: 'User registered successfully',
@@ -90,6 +100,15 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const { accessToken, refreshToken } = generateTokens(user);
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    
+    await prisma.refreshToken.create({
+      data: {
+        tokenHash,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      }
+    });
 
     return res.status(200).json({
       message: 'Login successful',
@@ -144,24 +163,64 @@ export const refreshToken = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Refresh token is required' });
     }
 
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const storedToken = await prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: true }
+    });
+
+    if (!storedToken || storedToken.revoked || storedToken.expiresAt < new Date()) {
+      return res.status(403).json({ message: 'Invalid or revoked refresh token' });
+    }
+
     jwt.verify(refreshToken, JWT_REFRESH_SECRET, async (err: any, decoded: any) => {
       if (err) {
         return res.status(403).json({ message: 'Invalid or expired refresh token' });
       }
 
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-      });
-
+      const user = storedToken.user;
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
+      // Revoke the old token
+      await prisma.refreshToken.update({
+        where: { id: storedToken.id },
+        data: { revoked: true }
+      });
+
       const tokens = generateTokens(user);
+      const newTokenHash = crypto.createHash('sha256').update(tokens.refreshToken).digest('hex');
+      
+      await prisma.refreshToken.create({
+        data: {
+          tokenHash: newTokenHash,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        }
+      });
+
       return res.status(200).json(tokens);
     });
   } catch (error) {
     console.error('Refresh token error:', error);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const logout = async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      await prisma.refreshToken.updateMany({
+        where: { tokenHash },
+        data: { revoked: true }
+      });
+    }
+    return res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };

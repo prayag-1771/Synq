@@ -112,7 +112,7 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 ---
 
-### HIGH-4: Refresh Tokens Not Stored or Revocable
+### HIGH-4: Refresh Tokens Not Stored or Revocable (SOLVED)
 **File:** [auth.controller.ts:136-163](file:///g:/VSC_NEW/Synq/synq-server/src/controllers/auth.controller.ts#L136-L163)  
 **Problem:** Refresh tokens are signed JWTs verified only by signature. They are never stored in a database or Redis. There is no way to revoke a refresh token if a user's account is compromised or they log out.  
 **Fix:** Store refresh token hashes in a `RefreshToken` Prisma model with `userId`, `tokenHash`, `expiresAt`, and `revoked` fields. Check on every refresh. Delete on logout.
@@ -145,7 +145,7 @@ const luaScript = `
 
 ## 🟡 Medium Severity Issues
 
-### MED-1: No Database Indexes on Hot Query Paths
+### MED-1: No Database Indexes on Hot Query Paths (SOLVED)
 **File:** [schema.prisma](file:///g:/VSC_NEW/Synq/synq-server/prisma/schema.prisma)  
 **Problem:** The `Message` model has no explicit index on `chatId` + `createdAt`. Cursor-based pagination queries (`WHERE chatId = ? AND createdAt < ? ORDER BY createdAt DESC LIMIT 50`) will perform full table scans as the message count grows.  
 **Fix:** Add composite index:
