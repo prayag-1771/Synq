@@ -19,10 +19,14 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
     "groq-sdk": "^1.2.1",
+    "helmet": "^8.2.0",
     "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.2",
-    "socket.io": "^4.7.5"
+    "rate-limit-redis": "^5.0.0",
+    "socket.io": "^4.7.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

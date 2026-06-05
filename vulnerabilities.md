@@ -20,7 +20,7 @@
 
 ## 🔴 Critical Issues
 
-### CRIT-1: `.env` File Committed to Git — Secrets Exposed
+### CRIT-1: `.env` File Committed to Git — Secrets Exposed (SOLVED)
 **File:** [.gitignore](file:///g:/VSC_NEW/Synq/.gitignore)  
 **Problem:** The `.gitignore` does NOT include `.env`. This means your `.env` file — containing `DATABASE_URL`, `JWT_SECRET`, `GEMINI_API_KEY`, `GROQ_API_KEY`, and `REDIS_URL` — is tracked and pushed to GitHub in plaintext.  
 **Impact:** Anyone with repository access can extract your Neon database credentials, AI API keys, and JWT signing secrets. This is the single most dangerous vulnerability in the project.  
@@ -35,7 +35,7 @@ Then run `git rm --cached synq-server/.env` to remove it from tracking.
 
 ---
 
-### CRIT-2: Hardcoded JWT Secrets as Fallback Defaults
+### CRIT-2: Hardcoded JWT Secrets as Fallback Defaults (SOLVED)
 **Files:**
 - [auth.controller.ts:7-8](file:///g:/VSC_NEW/Synq/synq-server/src/controllers/auth.controller.ts#L7-L8)
 - [auth.middleware.ts:26](file:///g:/VSC_NEW/Synq/synq-server/src/middleware/auth.middleware.ts#L26)
@@ -54,7 +54,7 @@ if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET environment variable is requ
 
 ---
 
-### CRIT-3: Redis `subClient` Shared Between Socket.IO Adapter and EventBus
+### CRIT-3: Redis `subClient` Shared Between Socket.IO Adapter and EventBus (SOLVED)
 **Files:**
 - [server.ts:31](file:///g:/VSC_NEW/Synq/synq-server/src/server.ts#L31): `io.adapter(createAdapter(pubClient, subClient))`
 - [eventBus.ts:16](file:///g:/VSC_NEW/Synq/synq-server/src/events/eventBus.ts#L16): `subClient.subscribe(this.redisChannel, ...)`
@@ -70,7 +70,7 @@ Then update `eventBus.ts` to import `eventPubClient` / `eventSubClient` instead.
 
 ---
 
-### CRIT-4: CORS Set to Wildcard `*` on Both Express and Socket.IO
+### CRIT-4: CORS Set to Wildcard `*` on Both Express and Socket.IO (SOLVED)
 **File:** [server.ts:23-24](file:///g:/VSC_NEW/Synq/synq-server/src/server.ts#L23-L24) and [server.ts:39](file:///g:/VSC_NEW/Synq/synq-server/src/server.ts#L39)  
 **Problem:** `origin: '*'` on Socket.IO and `app.use(cors())` with no config on Express allows any website on the internet to make authenticated requests to your API and establish WebSocket connections.  
 **Impact:** Enables Cross-Site WebSocket Hijacking (CSWSH) and CSRF attacks.  
@@ -85,7 +85,7 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 ## 🟠 High Severity Issues
 
-### HIGH-1: No Rate Limiting on Any Endpoint
+### HIGH-1: No Rate Limiting on Any Endpoint (SOLVED)
 **Problem:** There is no rate limiting middleware anywhere. The `/api/auth/login`, `/api/auth/register`, `/api/ai/summarize`, and `/api/ai/replies` endpoints are wide open.  
 **Impact:**
 - Brute-force attacks on login.
@@ -95,7 +95,7 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 ---
 
-### HIGH-2: No Input Validation or Sanitization
+### HIGH-2: No Input Validation or Sanitization (SOLVED)
 **Files:** All controllers  
 **Problem:** No schema validation library (Zod, Joi, class-validator) is used anywhere. User inputs from `req.body` are passed directly to Prisma queries and AI prompts.  
 **Impact:**
@@ -106,7 +106,7 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 ---
 
-### HIGH-3: No Security Headers (Helmet)
+### HIGH-3: No Security Headers (Helmet) (SOLVED)
 **Problem:** The Express server does not use `helmet` or any equivalent to set security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`, `Content-Security-Policy`).  
 **Fix:** `npm install helmet` and add `app.use(helmet())`.
 
@@ -119,7 +119,7 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 ---
 
-### HIGH-5: Race Condition in `deregisterUserPresence`
+### HIGH-5: Race Condition in `deregisterUserPresence` (SOLVED)
 **File:** [redis.ts:45-62](file:///g:/VSC_NEW/Synq/synq-server/src/db/redis.ts#L45-L62)  
 **Problem:** The function performs a `HGET` then a separate `HDEL` or `HSET`. Between these two Redis commands, another server instance could concurrently modify the same field, causing incorrect presence counts (phantom online/offline states).  
 **Fix:** Use `HINCRBY` (atomic) with a check, or use a Lua script for atomicity:

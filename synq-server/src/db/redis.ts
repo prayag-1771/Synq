@@ -55,17 +55,18 @@ export const registerUserPresence = async (userId: string): Promise<boolean> => 
  */
 export const deregisterUserPresence = async (userId: string): Promise<boolean> => {
   try {
-    const currentCountStr = await redisClient.hget(PRESENCE_KEY, userId);
-    if (!currentCountStr) return true; // Already offline
-
-    const newCount = parseInt(currentCountStr, 10) - 1;
-    if (newCount <= 0) {
-      await redisClient.hdel(PRESENCE_KEY, userId);
-      return true;
-    } else {
-      await redisClient.hset(PRESENCE_KEY, userId, newCount.toString());
-      return false;
-    }
+    const luaScript = `
+      local count = redis.call('hincrby', KEYS[1], ARGV[1], -1)
+      if count <= 0 then
+        redis.call('hdel', KEYS[1], ARGV[1])
+        return 1
+      end
+      return 0
+    `;
+    
+    // Eval returns 1 if user transitioned offline, 0 if still online
+    const result = await redisClient.eval(luaScript, 1, PRESENCE_KEY, userId);
+    return result === 1;
   } catch (err) {
     console.error(`Failed to deregister presence for user ${userId}:`, err);
     return false;
