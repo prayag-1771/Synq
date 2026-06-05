@@ -20,7 +20,7 @@ const generateTokens = (user: { id: string; username: string; email: string }) =
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, publicKey, encryptedPrivateKey, keySalt } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ message: 'All fields are required' });
@@ -45,6 +45,9 @@ export const register = async (req: Request, res: Response) => {
         email,
         passwordHash,
         avatar,
+        publicKey,
+        encryptedPrivateKey,
+        keySalt,
       },
     });
 

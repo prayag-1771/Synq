@@ -4,12 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '../../stores/authStore';
+import { useCryptoStore } from '../../stores/cryptoStore';
 import { apiService } from '../../services/apiService';
+import { deriveKeyFromPin, decryptPrivateKey } from '../../services/cryptoService';
 import { MessageSquare, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { setAuth, isAuthenticated } = useAuthStore();
+  const { setKeys } = useCryptoStore();
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,6 +44,20 @@ export default function LoginPage() {
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
+      }
+
+      // 1. If the user has E2EE keys, decrypt the private key locally
+      if (data.user.encryptedPrivateKey && data.user.keySalt && data.user.publicKey) {
+        try {
+          const derivedKey = await deriveKeyFromPin(password, data.user.keySalt);
+          const decryptedPk = await decryptPrivateKey(data.user.encryptedPrivateKey, derivedKey);
+          sessionStorage.setItem('synq_pk', decryptedPk);
+          sessionStorage.setItem('synq_pub', data.user.publicKey);
+          setKeys(decryptedPk, data.user.publicKey);
+        } catch (cryptoErr) {
+          console.error('Failed to decrypt private key:', cryptoErr);
+          // Don't block login, but E2EE messages will be unreadable
+        }
       }
 
       setAuth(data.user, data.accessToken, data.refreshToken);

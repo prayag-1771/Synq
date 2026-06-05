@@ -227,7 +227,10 @@ class SocketService {
     const { privateKeyHex } = useCryptoStore.getState();
     const chat = await localDb.chats.get(chatId);
 
-    if (privateKeyHex && chat && chat.type === 'DIRECT' && chat.otherUser) {
+    // Option C: Hybrid E2EE - Bypass encryption for AI slash commands
+    const isSlashCommand = content.startsWith('/');
+
+    if (!isSlashCommand && privateKeyHex && chat && chat.type === 'DIRECT' && chat.otherUser) {
       try {
         // Fetch recipient's public key (in a real app, this should be heavily cached)
         const publicKey = await getPublicKeyForUser(chat.otherUser.id);

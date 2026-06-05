@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '../../stores/authStore';
+import { useCryptoStore } from '../../stores/cryptoStore';
 import { apiService } from '../../services/apiService';
 import { generateKeyPair, generateSalt, deriveKeyFromPin, encryptPrivateKey } from '../../services/cryptoService';
 import { MessageSquare, Mail, User, Lock, Loader2, ArrowRight } from 'lucide-react';
@@ -11,6 +12,7 @@ import { MessageSquare, Mail, User, Lock, Loader2, ArrowRight } from 'lucide-rea
 export default function RegisterPage() {
   const router = useRouter();
   const { setAuth, isAuthenticated } = useAuthStore();
+  const { setKeys } = useCryptoStore();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,8 +42,10 @@ export default function RegisterPage() {
       const derivedKey = await deriveKeyFromPin(password, salt);
       const encryptedPrivateKey = await encryptPrivateKey(privateKey, derivedKey);
 
-      // Store the plaintext private key in sessionStorage for immediate use
+      // Store the plaintext private key in sessionStorage and Zustand for immediate use
       sessionStorage.setItem('synq_pk', privateKey);
+      sessionStorage.setItem('synq_pub', publicKey);
+      setKeys(privateKey, publicKey);
 
       // 2. Send keys to the server
       const response = await apiService.post('/auth/register', {
