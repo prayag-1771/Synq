@@ -1,6 +1,12 @@
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db/db';
+import { 
+  registerUserPresence, 
+  deregisterUserPresence, 
+  isUserOnline, 
+  getActiveUsers 
+} from '../db/redis';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'synq_jwt_access_secret_token_2026_modern';
 
@@ -14,8 +20,6 @@ export interface CustomSocket extends Socket {
   user?: SocketUser;
 }
 
-// Active user tracking in memory (will migrate to Redis later)
-const activeUsers = new Map<string, string>(); // userId -> socketId
 
 export const setupSocketHandlers = (io: Server) => {
   // Authentication Middleware for WebSockets
@@ -42,11 +46,13 @@ export const setupSocketHandlers = (io: Server) => {
 
     console.log(`User connected: ${username} (${userId}) - Socket: ${socket.id}`);
 
-    // Register active session
-    activeUsers.set(userId, socket.id);
+    // Register active session in Redis
+    const isNewOnline = await registerUserPresence(userId);
 
-    // Broadcast user online status
-    socket.broadcast.emit('user:online', { userId });
+    if (isNewOnline) {
+      // Broadcast user online status
+      socket.broadcast.emit('user:online', { userId });
+    }
 
     // Join room for direct events specifically to this user
     socket.join(userId);
@@ -110,13 +116,13 @@ export const setupSocketHandlers = (io: Server) => {
           where: { chatId, userId: { not: userId } },
         });
 
-        participants.forEach((p) => {
-          const recipientSocketId = activeUsers.get(p.userId);
-          if (recipientSocketId) {
+        for (const p of participants) {
+          const isOnline = await isUserOnline(p.userId);
+          if (isOnline) {
             // Send delivery receipt status updates if appropriate
             io.to(p.userId).emit('message:received_notify', { chatId, messageId: message.id });
           }
-        });
+        }
       } catch (err) {
         console.error('Failed to send message:', err);
         socket.emit('error', { message: 'Failed to send message' });
@@ -165,8 +171,9 @@ export const setupSocketHandlers = (io: Server) => {
     });
 
     // 5. Get initial presence query for all active users
-    socket.on('presence:get_active', (callback: (userIds: string[]) => void) => {
-      callback(Array.from(activeUsers.keys()));
+    socket.on('presence:get_active', async (callback: (userIds: string[]) => void) => {
+      const activeIds = await getActiveUsers();
+      callback(activeIds);
     });
 
     // 6. WebRTC Signaling Events
@@ -191,10 +198,12 @@ export const setupSocketHandlers = (io: Server) => {
     });
 
     // Handle Disconnect
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       console.log(`User disconnected: ${username} - Socket: ${socket.id}`);
-      activeUsers.delete(userId);
-      socket.broadcast.emit('user:offline', { userId });
+      const isOfflineNow = await deregisterUserPresence(userId);
+      if (isOfflineNow) {
+        socket.broadcast.emit('user:offline', { userId });
+      }
     });
   });
 };

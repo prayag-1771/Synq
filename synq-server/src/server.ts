@@ -8,6 +8,8 @@ import chatRoutes from './routes/chat.routes';
 import keysRoutes from './routes/keys.routes';
 import aiRoutes from './routes/ai.routes';
 import { setupSocketHandlers } from './sockets/socket';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { pubClient, subClient, clearPresenceStore } from './db/redis';
 
 dotenv.config();
 
@@ -20,6 +22,12 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+
+// Configure Socket.IO Redis adapter
+io.adapter(createAdapter(pubClient, subClient));
+
+// Clear stale active presence lists on start
+clearPresenceStore();
 
 const PORT = process.env.PORT || 5000;
 
