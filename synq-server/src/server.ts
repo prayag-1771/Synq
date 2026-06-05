@@ -10,8 +10,12 @@ import aiRoutes from './routes/ai.routes';
 import { setupSocketHandlers } from './sockets/socket';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { pubClient, subClient, clearPresenceStore } from './db/redis';
+import { initializeSubscribers } from './events/subscribers';
 
 dotenv.config();
+
+// Initialize internal event bus subscribers
+initializeSubscribers();
 
 const app = express();
 const server = http.createServer(app);

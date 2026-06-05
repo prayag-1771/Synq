@@ -7,6 +7,7 @@ import {
   isUserOnline, 
   getActiveUsers 
 } from '../db/redis';
+import { eventBus } from '../events/eventBus';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'synq_jwt_access_secret_token_2026_modern';
 
@@ -52,6 +53,8 @@ export const setupSocketHandlers = (io: Server) => {
     if (isNewOnline) {
       // Broadcast user online status
       socket.broadcast.emit('user:online', { userId });
+      // Publish to internal event bus
+      eventBus.publish('user.online', { userId }).catch(console.error);
     }
 
     // Join room for direct events specifically to this user
@@ -111,6 +114,14 @@ export const setupSocketHandlers = (io: Server) => {
         // Broadcast to the room (including sender), appending the tempId
         io.to(chatId).emit('message:new', { ...message, tempId });
 
+        // Publish to internal event bus
+        eventBus.publish('message.created', {
+          messageId: message.id,
+          chatId,
+          senderId: userId,
+          content,
+        }).catch(console.error);
+
         // If other participants aren't active in the room but online, notify them
         const participants = await prisma.chatParticipant.findMany({
           where: { chatId, userId: { not: userId } },
@@ -146,6 +157,9 @@ export const setupSocketHandlers = (io: Server) => {
 
         // Notify other participants in the chat
         socket.to(chatId).emit('message:read', { chatId, readerId: userId });
+
+        // Publish to internal event bus
+        eventBus.publish('message.read', { chatId, readerId: userId }).catch(console.error);
       } catch (err) {
         console.error('Error updating read status:', err);
       }
@@ -165,6 +179,9 @@ export const setupSocketHandlers = (io: Server) => {
           },
         });
         socket.to(chatId).emit('message:delivered', { chatId, delivererId: userId });
+        
+        // Publish to internal event bus
+        eventBus.publish('message.delivered', { chatId, delivererId: userId }).catch(console.error);
       } catch (err) {
         console.error('Error updating delivered status:', err);
       }
@@ -203,6 +220,7 @@ export const setupSocketHandlers = (io: Server) => {
       const isOfflineNow = await deregisterUserPresence(userId);
       if (isOfflineNow) {
         socket.broadcast.emit('user:offline', { userId });
+        eventBus.publish('user.offline', { userId }).catch(console.error);
       }
     });
   });

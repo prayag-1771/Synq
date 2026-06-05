@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../db/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { eventBus } from '../events/eventBus';
 
 export const getChats = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -161,6 +162,13 @@ export const getOrCreateDirectChat = async (req: AuthenticatedRequest, res: Resp
     const otherParticipant = newChat.participants.find(
       (p) => p.userId !== userId
     )?.user || null;
+
+    // Publish internal event
+    eventBus.publish('chat.created', {
+      chatId: newChat.id,
+      creatorId: userId,
+      type: newChat.type as 'DIRECT' | 'GROUP',
+    }).catch(console.error);
 
     return res.status(201).json({
       id: newChat.id,
