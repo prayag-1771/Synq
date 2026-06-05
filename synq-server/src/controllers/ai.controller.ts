@@ -212,13 +212,36 @@ export const explainContext = async (req: Request, res: Response): Promise<void>
 
 export const extractTodos = async (req: Request, res: Response): Promise<void> => {
   try {
-    // In Phase 4, we will read the DB for the channel. For now, we return mock data or parse a transcript.
-    const mockTodos = [
-      "- Deploy the latest Postgres schema changes.",
-      "- Setup the Redis TURN server fallback.",
-      "- Review the new AI prompt templates."
-    ];
-    res.status(200).json({ todos: mockTodos.join('\n') });
+    const { chatId } = req.query;
+    if (!chatId || typeof chatId !== 'string') {
+      res.status(400).json({ error: 'chatId is required' });
+      return;
+    }
+
+    const tasks = await prisma.extractedTask.findMany({
+      where: {
+        chatId,
+        isCompleted: false
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    if (tasks.length === 0) {
+      res.status(200).json({ todos: '*No pending tasks or meetings found in this chat.*' });
+      return;
+    }
+
+    let response = `**Action Items & Meetings**\n\n`;
+    
+    tasks.forEach((t) => {
+      const typeIcon = t.type === 'MEETING' ? '📅' : '✅';
+      const dueStr = t.dueDate ? ` *(Due: ${t.dueDate.toLocaleDateString()})*` : '';
+      response += `${typeIcon} **[${t.type}]** ${t.title}${dueStr}\n`;
+    });
+
+    res.status(200).json({ todos: response });
   } catch (error) {
     console.error('Todo extraction error:', error);
     res.status(500).json({ error: 'Failed to extract todos' });

@@ -379,7 +379,7 @@ export default function ChatPage() {
           else aiResponse = await aiService.explainContext(args);
           break;
         case '/todo':
-          aiResponse = await aiService.extractTodos();
+          aiResponse = await aiService.extractTodos(chatId);
           break;
       }
 
