@@ -6,7 +6,7 @@ This repository houses both the backend API server (`synq-server`), the Next.js 
 
 ---
 
-## ✨ Core Pillars & Features
+## ✨ Core Pillars & Feature
 
 ### 🔒 Military-Grade Security
 - **Hybrid End-to-End Encryption (E2EE)**: Direct messages are strictly encrypted on your local machine using `libsodium` Curve25519 cryptography before transmission. The server database only stores unreadable ciphertext.
