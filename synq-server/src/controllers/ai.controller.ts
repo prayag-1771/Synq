@@ -212,7 +212,7 @@ export const explainContext = async (req: Request, res: Response): Promise<void>
 
 export const extractTodos = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { chatId } = req.query;
+    const { chatId, json } = req.query;
     if (!chatId || typeof chatId !== 'string') {
       res.status(400).json({ error: 'chatId is required' });
       return;
@@ -221,12 +221,17 @@ export const extractTodos = async (req: Request, res: Response): Promise<void> =
     const tasks = await prisma.extractedTask.findMany({
       where: {
         chatId,
-        isCompleted: false
+        ...(json !== 'true' ? { isCompleted: false } : {})
       },
       orderBy: {
         createdAt: 'asc'
       }
     });
+
+    if (json === 'true') {
+      res.status(200).json({ tasks });
+      return;
+    }
 
     if (tasks.length === 0) {
       res.status(200).json({ todos: '*No pending tasks or meetings found in this chat.*' });
@@ -245,6 +250,52 @@ export const extractTodos = async (req: Request, res: Response): Promise<void> =
   } catch (error) {
     console.error('Todo extraction error:', error);
     res.status(500).json({ error: 'Failed to extract todos' });
+  }
+};
+
+export const toggleTask = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { taskId } = req.params;
+    // @ts-ignore
+    const userId = req.user?.userId;
+
+    if (!taskId) {
+      res.status(400).json({ error: 'taskId is required' });
+      return;
+    }
+
+    const task = await prisma.extractedTask.findUnique({
+      where: { id: taskId },
+      include: {
+        chat: {
+          include: {
+            participants: true
+          }
+        }
+      }
+    });
+
+    if (!task) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+
+    // Verify user is in this chat
+    const isParticipant = task.chat.participants.some((p) => p.userId === userId);
+    if (!isParticipant) {
+      res.status(403).json({ error: 'Forbidden: You are not a participant in this chat' });
+      return;
+    }
+
+    const updated = await prisma.extractedTask.update({
+      where: { id: taskId },
+      data: { isCompleted: !task.isCompleted }
+    });
+
+    res.status(200).json({ task: updated });
+  } catch (error) {
+    console.error('Toggle task error:', error);
+    res.status(500).json({ error: 'Failed to toggle task status' });
   }
 };
 

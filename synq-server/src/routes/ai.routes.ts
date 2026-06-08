@@ -6,6 +6,7 @@ import {
   translateText, 
   explainContext, 
   extractTodos,
+  toggleTask,
   runAgent,
   resumeAgent
 } from '../controllers/ai.controller';
@@ -30,6 +31,9 @@ router.post('/explain', authenticateJWT, explainContext);
 
 // Endpoint for extracting tasks
 router.get('/todo', authenticateJWT, extractTodos);
+
+// Endpoint for toggling task completion status
+router.put('/todo/:taskId/toggle', authenticateJWT, toggleTask);
 
 // Endpoint for executing the autonomous agent
 router.post('/agent', authenticateJWT, runAgent);

@@ -106,6 +106,36 @@ class AiService {
       return 'Sorry, I could not extract tasks right now.';
     }
   }
+
+  /**
+   * Fetches extracted tasks as JSON for the interactive checklist
+   */
+  async getTasksJson(chatId: string): Promise<any[]> {
+    try {
+      const res = await apiService.get(`/ai/todo?chatId=${chatId}&json=true`);
+      if (!res.ok) throw new Error('Failed to fetch JSON tasks');
+      const data = await res.json();
+      return data.tasks || [];
+    } catch (error) {
+      console.error('AI Fetch JSON Tasks Error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Toggles the completion status of a task
+   */
+  async toggleTaskStatus(taskId: string): Promise<any> {
+    try {
+      const res = await apiService.put(`/ai/todo/${taskId}/toggle`, {});
+      if (!res.ok) throw new Error('Failed to toggle task');
+      const data = await res.json();
+      return data.task || null;
+    } catch (error) {
+      console.error('AI Toggle Task Error:', error);
+      return null;
+    }
+  }
   /**
    * Runs the autonomous Agent with the given prompt
    */

@@ -13,6 +13,7 @@ import { webrtcService } from '../services/webrtcService';
 import PinModal from '../components/PinModal';
 import CallModal from '../components/CallModal';
 import SharedNotes from '../components/SharedNotes';
+import AIAssistant from '../components/AIAssistant';
 import {
   MessageSquare,
   Search,
@@ -31,8 +32,75 @@ import {
   Video,
   FileText,
   Check,
-  CheckCheck
+  CheckCheck,
+  Copy
 } from 'lucide-react';
+
+function formatMessageContent(content: string) {
+  if (!content) return null;
+  
+  // Split by code blocks
+  const parts = content.split(/(```[\s\S]*?```)/g);
+  
+  return parts.map((part, index) => {
+    if (part.startsWith('```') && part.endsWith('```')) {
+      // It's a code block
+      const codeLines = part.slice(3, -3).trim().split('\n');
+      let language = 'code';
+      let code = '';
+      
+      if (codeLines[0] && !codeLines[0].includes(' ') && codeLines[0].length < 15) {
+        language = codeLines[0];
+        code = codeLines.slice(1).join('\n');
+      } else {
+        code = codeLines.join('\n');
+      }
+      
+      return (
+        <div key={index} className="my-2 border border-slate-800 rounded-lg overflow-hidden bg-slate-950 font-mono text-xs text-slate-300">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-slate-800 text-[10px] text-slate-400 font-sans font-medium uppercase tracking-wider">
+            <span>{language}</span>
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(code);
+              }}
+              className="px-2 py-0.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition-colors"
+            >
+              Copy
+            </button>
+          </div>
+          <pre className="p-3 overflow-x-auto whitespace-pre"><code className="block">{code}</code></pre>
+        </div>
+      );
+    }
+    
+    // Process text inline styles (bold, inline code)
+    // First, split by inline code `...`
+    const inlineParts = part.split(/(`[^`]+`)/g);
+    const inlineRendered = inlineParts.map((subPart, subIndex) => {
+      if (subPart.startsWith('`') && subPart.endsWith('`')) {
+        return (
+          <code key={subIndex} className="px-1.5 py-0.5 mx-0.5 rounded bg-slate-950 border border-slate-800 text-indigo-400 font-mono text-xs select-all">
+            {subPart.slice(1, -1)}
+          </code>
+        );
+      }
+      
+      // Process bold **...**
+      const boldParts = subPart.split(/(\*\*[^*]+\*\*)/g);
+      return boldParts.map((boldPart, boldIndex) => {
+        if (boldPart.startsWith('**') && boldPart.endsWith('**')) {
+          return <strong key={boldIndex} className="font-semibold text-white">{boldPart.slice(2, -2)}</strong>;
+        }
+        return boldPart;
+      });
+    });
+    
+    return <span key={index} className="whitespace-pre-wrap">{inlineRendered}</span>;
+  });
+}
 
 export default function ChatPage() {
   const router = useRouter();
@@ -51,7 +119,30 @@ export default function ChatPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
-  const [showSharedNotes, setShowSharedNotes] = useState(false);
+  const [activeRightPanel, setActiveRightPanel] = useState<'notes' | 'ai' | null>(null);
+
+  // Slash Commands Dropdown state
+  const [showCommandsDropdown, setShowCommandsDropdown] = useState(false);
+  const [activeCommandIndex, setActiveCommandIndex] = useState(0);
+
+  const commands = [
+    { name: '/summarize', description: 'Summarize conversation history', usage: '/summarize' },
+    { name: '/search', description: 'Query vector database conceptually', usage: '/search <query>' },
+    { name: '/translate', description: 'Translate text (e.g. spanish)', usage: '/translate <lang> <text>' },
+    { name: '/explain', description: 'Explain a technical concept or code block', usage: '/explain <code/concept>' },
+    { name: '/todo', description: 'List tasks detected by AI in this chat', usage: '/todo' },
+    { name: '/agent', description: 'Run autonomous AI agent task', usage: '/agent <prompt>' }
+  ];
+
+  const filteredCommands = commands.filter(cmd => 
+    messageInput.startsWith('/') && 
+    cmd.name.startsWith(messageInput.split(' ')[0])
+  );
+
+  const selectCommand = (cmd: typeof commands[0]) => {
+    setMessageInput(cmd.name + ' ');
+    setShowCommandsDropdown(false);
+  };
   
   // AI State
   const [summary, setSummary] = useState<string | null>(null);
@@ -447,7 +538,15 @@ export default function ChatPage() {
   };
 
   const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessageInput(e.target.value);
+    const val = e.target.value;
+    setMessageInput(val);
+
+    const isCommandStart = val.startsWith('/') && !val.includes(' ');
+    setShowCommandsDropdown(isCommandStart);
+    if (isCommandStart) {
+      setActiveCommandIndex(0);
+    }
+
     if (!selectedChatId) return;
 
     if (!isTyping) {
@@ -463,6 +562,23 @@ export default function ChatPage() {
       socketService.sendTypingStatus(selectedChatId, false);
       setIsTyping(false);
     }, 2000);
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showCommandsDropdown && filteredCommands.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveCommandIndex((prev) => (prev + 1) % filteredCommands.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveCommandIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        selectCommand(filteredCommands[activeCommandIndex]);
+      } else if (e.key === 'Escape') {
+        setShowCommandsDropdown(false);
+      }
+    }
   };
 
   const handleLogout = async () => {
@@ -756,34 +872,49 @@ export default function ChatPage() {
                 </div>
               </div>
               
-              {/* Shared Notes / Canvas Toggle */}
-              <button
-                onClick={() => setShowSharedNotes(!showSharedNotes)}
-                className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 ${
-                  showSharedNotes 
-                  ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40' 
-                  : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border-indigo-500/20'
-                }`}
-                title="Shared Canvas"
-              >
-                <FileText className="w-5 h-5" />
-              </button>
-
-              {/* Call Button */}
-              {selectedChat.otherUser?.id ? (
+              <div className="flex items-center gap-2">
+                {/* Shared Notes / Canvas Toggle */}
                 <button
-                  onClick={() => {
-                    const otherUserId = selectedChat.otherUser?.id;
-                    if (otherUserId) {
-                      webrtcService.callUser(otherUserId, selectedChat.name);
-                    }
-                  }}
-                  className="p-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 transition-all shadow-sm"
-                  title="Start Video Call"
+                  onClick={() => setActiveRightPanel(activeRightPanel === 'notes' ? null : 'notes')}
+                  className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 ${
+                    activeRightPanel === 'notes'
+                    ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40' 
+                    : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border-indigo-500/20'
+                  }`}
+                  title="Shared Canvas"
                 >
-                  <Video className="w-5 h-5" />
+                  <FileText className="w-5 h-5" />
                 </button>
-              ) : null}
+
+                {/* AI Assistant Toggle */}
+                <button
+                  onClick={() => setActiveRightPanel(activeRightPanel === 'ai' ? null : 'ai')}
+                  className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 ${
+                    activeRightPanel === 'ai'
+                    ? 'bg-purple-600/20 text-purple-300 border-purple-500/40' 
+                    : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 border-purple-500/20'
+                  }`}
+                  title="AI Assistant"
+                >
+                  <BrainCircuit className="w-5 h-5" />
+                </button>
+
+                {/* Call Button */}
+                {selectedChat.otherUser?.id ? (
+                  <button
+                    onClick={() => {
+                      const otherUserId = selectedChat.otherUser?.id;
+                      if (otherUserId) {
+                        webrtcService.callUser(otherUserId, selectedChat.name);
+                      }
+                    }}
+                    className="p-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 transition-all shadow-sm"
+                    title="Start Video Call"
+                  >
+                    <Video className="w-5 h-5" />
+                  </button>
+                ) : null}
+              </div>
             </div>
             
             {/* Split Pane Container */}
@@ -862,7 +993,7 @@ export default function ChatPage() {
                             <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider mb-1 block flex items-center gap-1.5">
                               <Wand2 className="w-3 h-3" /> Synq AI Command
                             </span>
-                            <p className="whitespace-pre-wrap break-words leading-relaxed relative z-10">{message.content}</p>
+                            <div className="leading-relaxed relative z-10">{formatMessageContent(message.content)}</div>
                           </div>
                         </div>
                       </div>
@@ -891,7 +1022,7 @@ export default function ChatPage() {
                               : 'bg-slate-900 border border-slate-800/60 text-slate-100 rounded-bl-none'
                           } ${isSending ? 'opacity-60' : ''}`}
                         >
-                          <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                          <div>{formatMessageContent(message.content)}</div>
                           
                           {/* Retry button for failed messages */}
                           {isFailed && (
@@ -986,10 +1117,41 @@ export default function ChatPage() {
 
               <form onSubmit={handleSendMessage} className="flex gap-3 items-center">
                 <div className="flex-1 relative flex items-center">
+                  {showCommandsDropdown && filteredCommands.length > 0 && (
+                    <div className="absolute bottom-full left-0 mb-3 bg-slate-900 border border-slate-800/80 rounded-xl shadow-2xl w-80 max-h-60 overflow-y-auto z-30 p-1.5 divide-y divide-slate-800/50 backdrop-blur-xl animate-in slide-in-from-bottom-2 duration-200">
+                      <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        AI Slash Commands
+                      </div>
+                      <div className="py-1">
+                        {filteredCommands.map((cmd, idx) => {
+                          const isActive = idx === activeCommandIndex;
+                          return (
+                            <button
+                              key={cmd.name}
+                              type="button"
+                              onClick={() => selectCommand(cmd)}
+                              className={`w-full text-left px-3 py-2 rounded-lg flex flex-col transition-colors ${
+                                isActive 
+                                  ? 'bg-purple-600/20 border border-purple-500/30 text-white' 
+                                  : 'border border-transparent hover:bg-slate-800/50 text-slate-300 hover:text-slate-200'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center w-full">
+                                <span className="text-xs font-bold text-purple-400 font-mono">{cmd.name}</span>
+                                <span className="text-[9px] text-slate-500 font-mono">{cmd.usage}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 mt-0.5">{cmd.description}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   <input
                     type="text"
                     value={messageInput}
                     onChange={handleTyping}
+                    onKeyDown={handleInputKeyDown}
                     className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 pr-10 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all duration-200"
                     placeholder={`Write a message to ${selectedChat.name}...`}
                   />
@@ -1012,12 +1174,20 @@ export default function ChatPage() {
           </div>
           
           {/* Shared Canvas / Collaborative Editor */}
-              {showSharedNotes && selectedChatId && (
-                <SharedNotes 
-                  chatId={selectedChatId} 
-                  onClose={() => setShowSharedNotes(false)} 
-                />
-              )}
+          {activeRightPanel === 'notes' && selectedChatId && (
+            <SharedNotes 
+              chatId={selectedChatId} 
+              onClose={() => setActiveRightPanel(null)} 
+            />
+          )}
+
+          {/* AI Assistant Side Panel */}
+          {activeRightPanel === 'ai' && selectedChatId && (
+            <AIAssistant 
+              chatId={selectedChatId} 
+              onClose={() => setActiveRightPanel(null)} 
+            />
+          )}
             </div>
           </>
         ) : (
