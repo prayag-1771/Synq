@@ -56,5 +56,8 @@ export const apiService = {
   get: (endpoint: string, options?: RequestInit) => request(endpoint, { ...options, method: 'GET' }),
   post: (endpoint: string, body: any, options?: RequestInit) =>
     request(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) }),
+  put: (endpoint: string, body: any, options?: RequestInit) =>
+    request(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+  delete: (endpoint: string, options?: RequestInit) => request(endpoint, { ...options, method: 'DELETE' }),
 };
 export default apiService;
