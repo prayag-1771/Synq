@@ -86,45 +86,45 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-slate-950 overflow-hidden text-slate-100">
+    <div className="relative min-h-screen flex items-center justify-center bg-slate-50 overflow-hidden text-slate-800">
       {/* Background Gradients */}
-      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-indigo-100/60 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-violet-100/60 blur-[120px] pointer-events-none" />
 
       {/* Register Card */}
-      <div className="w-full max-w-md p-8 mx-4 rounded-2xl border border-slate-800/80 bg-slate-900/40 backdrop-blur-xl shadow-2xl relative z-10">
+      <div className="w-full max-w-md p-8 mx-4 rounded-2xl border border-slate-200/80 bg-white/80 backdrop-blur-xl shadow-2xl shadow-slate-100 relative z-10">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600 shadow-lg shadow-indigo-500/30 mb-4 animate-pulse">
+          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600 shadow-lg shadow-indigo-500/20 mb-4 animate-pulse">
             <MessageSquare className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 bg-clip-text text-transparent">
             Create an Account
           </h1>
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-sm text-slate-500 mt-2">
             Get started with Synq secure messaging
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+          <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200/60 text-red-600 text-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-400 tracking-wider uppercase">
+            <label className="text-xs font-bold text-slate-500 tracking-wider uppercase">
               Username
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <User className="w-4 h-4" />
               </span>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-800 bg-slate-950/50 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-white/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 shadow-sm"
                 placeholder="johndoe"
                 required
               />
@@ -132,18 +132,18 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-400 tracking-wider uppercase">
+            <label className="text-xs font-bold text-slate-500 tracking-wider uppercase">
               Email Address
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <Mail className="w-4 h-4" />
               </span>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-800 bg-slate-950/50 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-white/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 shadow-sm"
                 placeholder="john@example.com"
                 required
               />
@@ -151,18 +151,18 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-400 tracking-wider uppercase">
+            <label className="text-xs font-bold text-slate-500 tracking-wider uppercase">
               Password
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <Lock className="w-4 h-4" />
               </span>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-800 bg-slate-950/50 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-200"
+                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-white/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 shadow-sm"
                 placeholder="••••••••"
                 required
               />
@@ -172,7 +172,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-700/50 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-lg hover:shadow-indigo-500/20 active:scale-[0.98] transition-all duration-200"
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:bg-indigo-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-md hover:shadow-indigo-500/20 transition-all duration-200"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -185,11 +185,11 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-slate-400">
+        <p className="mt-8 text-center text-sm text-slate-500">
           Already have an account?{' '}
           <Link
             href="/login"
-            className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors duration-150"
+            className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors duration-150"
           >
             Sign in
           </Link>
