@@ -21,6 +21,7 @@ dotenv.config();
 initializeSubscribers();
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (Render)
 const server = http.createServer(app);
 const allowedOrigins: string[] = [
   'http://localhost:3000',
