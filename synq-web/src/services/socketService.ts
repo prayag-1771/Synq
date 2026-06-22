@@ -53,9 +53,13 @@ export const tryDecryptMessage = async (content: string, senderId: string): Prom
 
   try {
     const senderPk = await getPublicKeyForUser(senderId);
-    if (!senderPk) return content;
+    if (!senderPk) {
+      console.warn(`[tryDecryptMessage] No public key found for sender: ${senderId}`);
+      return content;
+    }
     return await decryptMessage(content, senderPk, privateKeyHex);
   } catch (err) {
+    console.error(`[tryDecryptMessage] Failed to decrypt message from ${senderId}:`, err);
     return content;
   }
 };

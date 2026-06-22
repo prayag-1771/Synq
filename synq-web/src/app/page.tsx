@@ -610,6 +610,9 @@ export default function ChatPage() {
     await localDb.messages.clear();
     await localDb.outbox.clear();
     
+    // Wipe encryption keys from memory
+    useCryptoStore.getState().lockKeys();
+    
     clearAuth();
     router.push('/login');
   };
