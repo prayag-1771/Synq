@@ -207,6 +207,30 @@ export default function ChatPage() {
     }
   }, [selectedChatId]);
 
+  // 5b. Re-decrypt messages after PIN entry unlocks crypto keys
+  const { isUnlocked } = useCryptoStore();
+  useEffect(() => {
+    if (!isUnlocked || !selectedChatId) return;
+    
+    const decryptCachedCiphertext = async () => {
+      const cachedMessages = await localDb.messages.where('chatId').equals(selectedChatId).toArray();
+      const ciphertextMessages = cachedMessages.filter(m => isLikelyCiphertext(m.content));
+      
+      if (ciphertextMessages.length === 0) return;
+      
+      console.log(`[PostUnlock] Decrypting ${ciphertextMessages.length} ciphertext messages...`);
+      
+      for (const msg of ciphertextMessages) {
+        const decrypted = await tryDecryptMessage(msg.content, msg.senderId, msg.chatId);
+        if (decrypted !== msg.content) {
+          await localDb.messages.update(msg.id, { content: decrypted });
+        }
+      }
+    };
+    
+    decryptCachedCiphertext();
+  }, [isUnlocked, selectedChatId]);
+
   // AI Smart Replies trigger when new messages arrive
   useEffect(() => {
     if (messages.length > 0) {

@@ -113,7 +113,7 @@ class SocketService {
         await localDb.messages.delete(tempId);
       } else {
         try {
-          finalContent = await tryDecryptMessage(message.content, message.senderId);
+          finalContent = await tryDecryptMessage(message.content, message.senderId, message.chatId);
         } catch (err) {
           console.error('Decryption error or unencrypted message');
         }
