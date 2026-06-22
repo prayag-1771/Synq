@@ -2,36 +2,53 @@ import Redis from 'ioredis';
 
 const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
+// Track whether Redis is available
+export let redisAvailable = false;
+
+const createRedisClient = (label: string) => {
+  let warnedOnce = false;
+
+  const client = new Redis(redisUrl, {
+    maxRetriesPerRequest: null,
+    enableOfflineQueue: false,
+    lazyConnect: true,
+    // Stop retrying after first failure — no Redis means degraded mode
+    retryStrategy: () => null,
+  });
+
+  client.on('connect', () => {
+    redisAvailable = true;
+    console.log(`[Redis] ${label} connected ✓`);
+  });
+
+  client.on('error', (err) => {
+    if (!warnedOnce && (err as any).code === 'ECONNREFUSED') {
+      warnedOnce = true;
+      console.warn(`[Redis] ${label} — not available. Server running in degraded mode (no Redis).`);
+    }
+  });
+
+  // Attempt connection but don't block startup
+  client.connect().catch(() => {
+    // Swallow — the error event above handles logging
+  });
+
+  return client;
+};
+
 // Main client for querying presence maps
-export const redisClient = new Redis(redisUrl, {
-  maxRetriesPerRequest: null,
-});
+export const redisClient = createRedisClient('Main Client');
 
 // Pub/Sub clients for Socket.IO Redis adapter (DEDICATED — do not share)
-export const pubClient = new Redis(redisUrl, {
-  maxRetriesPerRequest: null,
-});
-
-export const subClient = new Redis(redisUrl, {
-  maxRetriesPerRequest: null,
-});
+export const pubClient = createRedisClient('Pub Client');
+export const subClient = createRedisClient('Sub Client');
 
 // Pub/Sub clients for Internal Event Bus (DEDICATED — separate from Socket.IO)
-export const eventPubClient = new Redis(redisUrl, {
-  maxRetriesPerRequest: null,
-});
+export const eventPubClient = createRedisClient('Event Pub Client');
+export const eventSubClient = createRedisClient('Event Sub Client');
 
-export const eventSubClient = new Redis(redisUrl, {
-  maxRetriesPerRequest: null,
-});
-
-redisClient.on('connect', () => console.log('Redis Client connected'));
-redisClient.on('error', (err) => console.error('Redis Client Error:', err));
-
-pubClient.on('error', (err) => console.error('Redis Pub Client Error:', err));
-subClient.on('error', (err) => console.error('Redis Sub Client Error:', err));
-eventPubClient.on('error', (err) => console.error('Redis Event Pub Client Error:', err));
-eventSubClient.on('error', (err) => console.error('Redis Event Sub Client Error:', err));
+// Set available flag on first successful connection
+redisClient.once('connect', () => { redisAvailable = true; });
 
 const PRESENCE_KEY = 'synq:active_users';
 

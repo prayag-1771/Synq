@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import crypto from 'crypto';
-import { eventPubClient, eventSubClient } from '../db/redis';
+import { eventPubClient, eventSubClient, redisAvailable } from '../db/redis';
 import { AppEvent, EventPayloads } from './types';
 
 class SynqEventBus extends EventEmitter {
@@ -8,16 +8,22 @@ class SynqEventBus extends EventEmitter {
 
   constructor() {
     super();
-    this.setupRedisSubscription();
+    // Delay Redis subscription setup to allow connection time
+    setTimeout(() => this.setupRedisSubscription(), 600);
   }
 
   private setupRedisSubscription() {
+    if (!redisAvailable) {
+      console.warn('[EventBus] Redis unavailable — running in local-only mode (single instance).');
+      return;
+    }
+
     // Subscribe to the Redis channel for cross-instance events
     eventSubClient.subscribe(this.redisChannel, (err) => {
       if (err) {
-        console.error('Failed to subscribe to Redis event channel:', err);
+        console.error('[EventBus] Failed to subscribe to Redis event channel:', err);
       } else {
-        console.log(`Subscribed to Redis event channel: ${this.redisChannel}`);
+        console.log(`[EventBus] Subscribed to Redis event channel: ${this.redisChannel} ✓`);
       }
     });
 
@@ -29,7 +35,7 @@ class SynqEventBus extends EventEmitter {
           // Emit locally for subscribers in this Node process
           this.emitLocal(parsedEvent);
         } catch (err) {
-          console.error('Failed to parse incoming Redis event:', err);
+          console.error('[EventBus] Failed to parse incoming Redis event:', err);
         }
       }
     });
@@ -37,7 +43,7 @@ class SynqEventBus extends EventEmitter {
 
   /**
    * Publish an event to the distributed system.
-   * By sending to Redis, ALL active server instances (including this one) will receive and process it.
+   * If Redis is available, broadcasts to all instances. Otherwise fires locally only.
    */
   public async publish<K extends AppEvent['type']>(type: K, data: EventPayloads[K]): Promise<void> {
     const event: AppEvent = {
@@ -47,11 +53,17 @@ class SynqEventBus extends EventEmitter {
       data: data as any,
     };
 
-    try {
-      await eventPubClient.publish(this.redisChannel, JSON.stringify(event));
-    } catch (err) {
-      console.error(`Failed to publish event ${type} to Redis:`, err);
+    if (redisAvailable) {
+      try {
+        await eventPubClient.publish(this.redisChannel, JSON.stringify(event));
+        return; // Redis publish will trigger emitLocal via the subscriber above
+      } catch (err) {
+        console.error(`[EventBus] Failed to publish event ${type} to Redis, emitting locally:`, err);
+      }
     }
+
+    // Fallback: emit locally when Redis is unavailable
+    this.emitLocal(event);
   }
 
   /**
@@ -72,3 +84,4 @@ class SynqEventBus extends EventEmitter {
 }
 
 export const eventBus = new SynqEventBus();
+
