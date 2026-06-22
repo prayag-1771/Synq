@@ -11,6 +11,8 @@ const createRedisClient = (label: string) => {
   const client = new Redis(redisUrl, {
     // Only retry requests once if they fail
     maxRetriesPerRequest: 1,
+    // Disable internal INFO ready check to prevent subscriber mode crashes
+    enableReadyCheck: false,
     // Try to connect 3 times, then give up (degraded mode)
     retryStrategy: (times) => {
       if (times > 3) return null;
