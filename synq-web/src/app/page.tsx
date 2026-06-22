@@ -301,29 +301,61 @@ export default function ChatPage() {
     }
   };
 
+  const isLikelyCiphertext = (text: string) => text.length >= 80 && /^[0-9a-fA-F]+$/.test(text);
+
   const fetchMessagesInitial = async (chatId: string) => {
     try {
+      // 1. Check if localDb already has decrypted messages for this chat
+      const existingMessages = await localDb.messages.where('chatId').equals(chatId).toArray();
+      const hasCachedPlaintext = existingMessages.length > 0 && 
+        existingMessages.every(m => !isLikelyCiphertext(m.content));
+
+      if (hasCachedPlaintext) {
+        // Local DB already has all plaintext — no need to hit the server or re-decrypt.
+        // Do a silent background sync to pick up any NEW messages we might have missed.
+        const newestLocal = existingMessages.reduce((a, b) => 
+          new Date(a.createdAt) > new Date(b.createdAt) ? a : b
+        );
+        
+        const res = await apiService.get(`/chats/${chatId}/messages?limit=50`);
+        if (res.ok) {
+          const data = await res.json();
+          // Only process messages that are NOT already in localDb
+          const existingIds = new Set(existingMessages.map(m => m.id));
+          const newMessages = data.filter((m: any) => !existingIds.has(m.id));
+          
+          if (newMessages.length > 0) {
+            const decrypted = await Promise.all(newMessages.map(async (m: any) => ({
+              id: m.id,
+              chatId: m.chatId,
+              senderId: m.senderId,
+              content: await tryDecryptMessage(m.content, m.senderId, m.chatId),
+              createdAt: m.createdAt,
+              status: m.status || 'SENT',
+              senderName: m.sender.username,
+              senderAvatar: m.sender.avatar || undefined,
+            })));
+            await localDb.messages.bulkPut(decrypted);
+          }
+        }
+        return;
+      }
+
+      // 2. No local cache — full fetch + decrypt from server
       const res = await apiService.get(`/chats/${chatId}/messages?limit=50`);
       if (res.ok) {
         const data = await res.json();
-        
-        // Fetch existing messages to prevent overwriting sender's plaintext with ciphertext
-        const existingMessages = await localDb.messages.where('chatId').equals(chatId).toArray();
         const existingMap = new Map(existingMessages.map(m => [m.id, m]));
 
         const localMessages = await Promise.all(data.map(async (m: any) => {
           let finalContent = m.content;
           const existing = existingMap.get(m.id);
           
-          const isLikelyCiphertext = (text: string) => text.length >= 80 && /^[0-9a-fA-F]+$/.test(text);
-          
           if (existing && !isLikelyCiphertext(existing.content)) {
-             // We already have the plaintext locally, no need to decrypt again!
              finalContent = existing.content;
           } else {
              finalContent = await tryDecryptMessage(m.content, m.senderId, m.chatId);
              
-             // If we successfully decrypted a message that was stuck as ciphertext in localDb, update it
              if (existing && finalContent !== m.content) {
                 await localDb.messages.update(m.id, { content: finalContent });
              }
@@ -371,8 +403,6 @@ export default function ChatPage() {
             let finalContent = m.content;
             const existing = existingMap.get(m.id);
             
-            const isLikelyCiphertext = (text: string) => text.length >= 80 && /^[0-9a-fA-F]+$/.test(text);
-
             if (existing && !isLikelyCiphertext(existing.content)) {
                finalContent = existing.content;
             } else {
