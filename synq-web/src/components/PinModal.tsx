@@ -110,24 +110,23 @@ export default function PinModal() {
         </div>
         
         <h2 className="text-xl font-bold text-white text-center mb-2">
-          {isNewUser ? 'Set up End-to-End Encryption' : 'Enter Security PIN'}
+          {isNewUser ? 'Set up End-to-End Encryption' : 'Enter Account Password'}
         </h2>
         
         <p className="text-xs text-slate-400 text-center mb-6">
           {isNewUser 
-            ? 'Create a 6-digit PIN to secure your chat history. You will need this to read your messages on new devices.'
-            : 'Enter your 6-digit PIN to decrypt your private keys and access your secure chat history.'}
+            ? 'Enter your account password to secure your chat history. You will need this to read your messages on new devices.'
+            : 'Enter your account password to decrypt your private keys and access your secure chat history.'}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <input
               type="password"
-              maxLength={6}
               value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="6-digit PIN"
-              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-center text-xl tracking-[0.5em] text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="Your password"
+              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-center text-xl tracking-[0.2em] text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
               autoFocus
             />
           </div>
