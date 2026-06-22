@@ -95,6 +95,18 @@ export const setupSocketHandlers = (io: Server) => {
     // 3. Send Message
     socket.on('message:send', async ({ chatId, content, tempId }: { chatId: string; content: string; tempId?: string }) => {
       try {
+        // Verify user is a participant
+        const participant = await prisma.chatParticipant.findUnique({
+          where: {
+            chatId_userId: { chatId, userId }
+          }
+        });
+
+        if (!participant) {
+          console.error(`User ${userId} attempted to send message to unauthorized chat ${chatId}`);
+          return socket.emit('error', { message: 'Forbidden: You are not in this chat', tempId });
+        }
+
         // Save to Database
         const message = await prisma.message.create({
           data: {

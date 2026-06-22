@@ -172,6 +172,13 @@ class SocketService {
     this.socket.on('disconnect', () => {
       console.log('Socket disconnected');
     });
+
+    this.socket.on('error', async (errorPayload: any) => {
+      console.error('Socket error:', errorPayload);
+      if (errorPayload && errorPayload.tempId) {
+        await localDb.messages.update(errorPayload.tempId, { status: 'FAILED' });
+      }
+    });
   }
 
   disconnect() {
