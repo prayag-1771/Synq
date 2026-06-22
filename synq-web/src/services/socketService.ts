@@ -11,6 +11,10 @@ const publicKeyCache: Record<string, string> = {};
 // Cache the promise to prevent simultaneous duplicate requests for the same user
 const pendingKeyRequests: Record<string, Promise<string | null>> = {};
 
+export const invalidatePublicKeyCache = (userId: string) => {
+  delete publicKeyCache[userId];
+};
+
 export const getPublicKeyForUser = async (userId: string): Promise<string | null> => {
   if (publicKeyCache[userId]) return publicKeyCache[userId];
   if (pendingKeyRequests[userId] !== undefined) return pendingKeyRequests[userId];
@@ -43,27 +47,36 @@ export const tryDecryptMessage = async (content: string, senderId: string, chatI
   if (!privateKeyHex || content.length < 50) return content;
 
   try {
-    let targetPublicKey: string | null = null;
-
+    let targetUserId = senderId;
+    
     if (user && senderId === user.id) {
-      // It's our own outbox message. Curve25519 allows symmetric decryption of outbox
-      // if we calculate the shared secret using the RECIPIENT's public key and OUR private key.
       if (!chatId) return content;
       const chat = await localDb.chats.get(chatId);
       if (!chat || chat.type !== 'DIRECT' || !chat.otherUser) return content;
-      
-      targetPublicKey = await getPublicKeyForUser(chat.otherUser.id);
-    } else {
-      // It's an incoming message. Decrypt using SENDER's public key.
-      targetPublicKey = await getPublicKeyForUser(senderId);
+      targetUserId = chat.otherUser.id;
     }
+    
+    let targetPublicKey = await getPublicKeyForUser(targetUserId);
 
     if (!targetPublicKey) {
       console.warn(`[tryDecryptMessage] No target public key found for message decryption`);
       return content;
     }
     
-    return await decryptMessage(content, targetPublicKey, privateKeyHex);
+    try {
+      return await decryptMessage(content, targetPublicKey, privateKeyHex);
+    } catch (decryptErr) {
+      // If decryption fails, the sender might have rotated their keys.
+      // Invalidate the cache and try one more time.
+      console.warn(`[tryDecryptMessage] Decryption failed with cached key. Invalidating cache and retrying for ${targetUserId}...`);
+      invalidatePublicKeyCache(targetUserId);
+      
+      const freshPublicKey = await getPublicKeyForUser(targetUserId);
+      if (freshPublicKey && freshPublicKey !== targetPublicKey) {
+        return await decryptMessage(content, freshPublicKey, privateKeyHex);
+      }
+      throw decryptErr; // Throw if the fresh key still fails or is the same
+    }
   } catch (err) {
     console.error(`[tryDecryptMessage] Failed to decrypt message:`, err);
     return content;
