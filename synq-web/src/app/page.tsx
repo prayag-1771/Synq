@@ -314,11 +314,18 @@ export default function ChatPage() {
           let finalContent = m.content;
           const existing = existingMap.get(m.id);
           
-          if (existing && existing.content.length < 150) {
+          const isLikelyCiphertext = (text: string) => text.length >= 80 && /^[0-9a-fA-F]+$/.test(text);
+          
+          if (existing && !isLikelyCiphertext(existing.content)) {
              // We already have the plaintext locally, no need to decrypt again!
              finalContent = existing.content;
           } else {
              finalContent = await tryDecryptMessage(m.content, m.senderId);
+             
+             // If we successfully decrypted a message that was stuck as ciphertext in localDb, update it
+             if (existing && finalContent !== m.content) {
+                await localDb.messages.update(m.id, { content: finalContent });
+             }
           }
 
           return {
@@ -363,10 +370,16 @@ export default function ChatPage() {
             let finalContent = m.content;
             const existing = existingMap.get(m.id);
             
-            if (existing && existing.content.length < 150) {
+            const isLikelyCiphertext = (text: string) => text.length >= 80 && /^[0-9a-fA-F]+$/.test(text);
+
+            if (existing && !isLikelyCiphertext(existing.content)) {
                finalContent = existing.content;
             } else {
                finalContent = await tryDecryptMessage(m.content, m.senderId);
+               
+               if (existing && finalContent !== m.content) {
+                  await localDb.messages.update(m.id, { content: finalContent });
+               }
             }
 
             return {
