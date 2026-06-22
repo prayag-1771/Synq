@@ -591,6 +591,12 @@ export default function ChatPage() {
       console.error('Failed to logout on server:', error);
     }
     socketService.disconnect();
+    
+    // Clear local database to prevent data leaking to next user on same device
+    await localDb.chats.clear();
+    await localDb.messages.clear();
+    await localDb.outbox.clear();
+    
     clearAuth();
     router.push('/login');
   };

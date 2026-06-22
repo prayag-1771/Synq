@@ -34,7 +34,8 @@ export const syncService = {
 
       const response = await apiService.get(`/chats/sync?lastSync=${encodeURIComponent(lastSync)}`);
       if (response.ok) {
-        const messages = await response.json();
+        const data = await response.json();
+        const messages = data.messages || [];
         console.log(`Sync complete. Fetched ${messages.length} missing messages`);
 
         if (messages.length > 0) {
