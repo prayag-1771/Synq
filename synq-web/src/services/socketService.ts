@@ -109,6 +109,13 @@ class SocketService {
         const optimisticMsg = await localDb.messages.get(tempId);
         if (optimisticMsg) {
           finalContent = optimisticMsg.content; // Preserve plaintext!
+        } else {
+          // The tempId doesn't belong to us (it's the sender's), so we need to decrypt it!
+          try {
+            finalContent = await tryDecryptMessage(message.content, message.senderId, message.chatId);
+          } catch (err) {
+            console.error('Decryption error or unencrypted message');
+          }
         }
         await localDb.messages.delete(tempId);
       } else {
