@@ -53,16 +53,30 @@ export const generateSmartReplies = async (req: Request, res: Response): Promise
     }
 
     if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'dummy_key') {
-      res.status(200).json({ replies: ["Sounds good!", "No problem", "I'll check on that."] });
+      res.status(200).json({ 
+        replies: ["Sounds good!", "No problem", "I'll check on that."],
+        actions: []
+      });
       return;
     }
 
     const prompt = `
-    You are a smart reply engine for a chat app.
-    Based on the following recent messages, generate EXACTLY 3 short, context-aware reply suggestions for the user.
-    The replies should be natural, brief (1-5 words), and distinct from each other.
-    Format your response EXACTLY as a valid JSON array of 3 strings. NO extra text, NO markdown blocks.
-    Example: ["Yes, absolutely", "Not right now", "I will do it"]
+    You are an intelligent assistant embedded in a chat app.
+    Based on the following recent messages, generate exactly 3 short, context-aware reply suggestions (1-5 words each).
+    ALSO, analyze the context to see if any background actions should be suggested.
+    
+    If the context implies scheduling, action items, or creating a task, suggest an action with type "extractTodo" and label "✨ Extract Tasks".
+    If someone explicitly asks for a file, PDF, or document, suggest an action with type "searchLocalFiles", include the "query", and label "✨ Search Local Files".
+    If no actions are relevant, return an empty array for actions.
+    
+    Format your response EXACTLY as valid JSON like this, with NO markdown formatting:
+    {
+      "replies": ["Yes", "No", "Thanks"],
+      "actions": [
+        { "action": "extractTodo", "label": "✨ Extract Tasks" },
+        { "action": "searchLocalFiles", "query": "Q3 report pdf", "label": "✨ Search Local Files" }
+      ]
+    }
     
     Recent Messages Context:
     ${contextMessages.map((m: any) => `${m.sender}: ${m.text}`).join('\n')}
@@ -72,15 +86,17 @@ export const generateSmartReplies = async (req: Request, res: Response): Promise
       messages: [{ role: 'user', content: prompt }],
       model: 'llama-3.1-8b-instant',
       temperature: 0.5,
+      response_format: { type: 'json_object' }
     });
 
-    const text = chatCompletion.choices[0]?.message?.content || '[]';
+    const text = chatCompletion.choices[0]?.message?.content || '{"replies":[],"actions":[]}';
     
     try {
-      // Strip markdown code blocks if the model returned them
-      const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const replies = JSON.parse(cleanText);
-      res.status(200).json({ replies });
+      const parsed = JSON.parse(text);
+      res.status(200).json({ 
+        replies: parsed.replies || [],
+        actions: parsed.actions || []
+      });
     } catch (parseError) {
       res.status(500).json({ error: 'Failed to parse AI response' });
     }

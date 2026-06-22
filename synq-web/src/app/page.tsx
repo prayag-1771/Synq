@@ -34,7 +34,8 @@ import {
   FileText,
   Check,
   CheckCheck,
-  Copy
+  Copy,
+  Zap
 } from 'lucide-react';
 
 function formatMessageContent(content: string) {
@@ -149,6 +150,7 @@ export default function ChatPage() {
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
+  const [smartActions, setSmartActions] = useState<any[]>([]);
   const [isFetchingReplies, setIsFetchingReplies] = useState(false);
 
   // Semantic Search State
@@ -258,8 +260,9 @@ export default function ChatPage() {
     if (!messages || messages.length === 0) return;
     try {
       setIsFetchingReplies(true);
-      const replies = await aiService.getSmartReplies(messages.slice(-5));
+      const { replies, actions } = await aiService.getSmartReplies(messages.slice(-5));
       setSmartReplies(replies);
+      setSmartActions(actions);
     } catch (err) {
       console.error(err);
     } finally {
@@ -1173,24 +1176,44 @@ export default function ChatPage() {
             {/* Smart Replies & Chat Pane Message Input */}
             <div className="p-4 bg-slate-900/10 backdrop-blur-md border-t border-slate-800/60 flex flex-col gap-3">
               
-              {/* AI Smart Replies Row */}
-              {smartReplies.length > 0 && (
-                <div className="flex gap-2 px-1 overflow-x-auto custom-scrollbar pb-1">
-                  {smartReplies.map((reply, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setMessageInput(reply);
-                        setSmartReplies([]);
-                      }}
-                      className="px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5"
-                    >
-                      <Sparkles className="w-3 h-3 opacity-70" />
-                      {reply}
-                    </button>
-                  ))}
-                </div>
-              )}
+            {/* AI Smart Replies & Actions Row */}
+            {(smartReplies.length > 0 || smartActions.length > 0) && (
+              <div className="flex gap-2 px-1 overflow-x-auto custom-scrollbar pb-1">
+                {smartActions.map((action, idx) => (
+                  <button
+                    key={`action-${idx}`}
+                    onClick={() => {
+                      if (!selectedChatId) return;
+                      if (action.action === 'extractTodo') {
+                        executeSlashCommand('/todo', selectedChatId);
+                      } else if (action.action === 'searchLocalFiles') {
+                        executeSlashCommand(`/agent search local files for ${action.query || 'documents'}`, selectedChatId);
+                      }
+                      setSmartActions([]);
+                      setSmartReplies([]);
+                    }}
+                    className="px-4 py-1.5 rounded-full border border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5"
+                  >
+                    <Zap className="w-3.5 h-3.5 text-blue-400" />
+                    {action.label}
+                  </button>
+                ))}
+                {smartReplies.map((reply, idx) => (
+                  <button
+                    key={`reply-${idx}`}
+                    onClick={() => {
+                      setMessageInput(reply);
+                      setSmartReplies([]);
+                      setSmartActions([]);
+                    }}
+                    className="px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3 h-3 opacity-70" />
+                    {reply}
+                  </button>
+                ))}
+              </div>
+            )}
 
               <form onSubmit={handleSendMessage} className="flex gap-3 items-center">
                 <div className="flex-1 relative flex items-center">

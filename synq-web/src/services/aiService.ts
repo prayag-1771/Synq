@@ -27,8 +27,8 @@ class AiService {
   /**
    * Suggests 3 smart replies based on recent conversation context
    */
-  async getSmartReplies(recentMessages: LocalMessage[]): Promise<string[]> {
-    if (!recentMessages || recentMessages.length === 0) return [];
+  async getSmartReplies(recentMessages: LocalMessage[]): Promise<{ replies: string[], actions: any[] }> {
+    if (!recentMessages || recentMessages.length === 0) return { replies: [], actions: [] };
 
     const contextMessages = recentMessages.map(m => ({
       sender: m.senderName,
@@ -39,10 +39,13 @@ class AiService {
       const res = await apiService.post('/ai/replies', { contextMessages });
       if (!res.ok) throw new Error('Failed to generate smart replies');
       const data = await res.json();
-      return data.replies || [];
+      return { 
+        replies: data.replies || [],
+        actions: data.actions || []
+      };
     } catch (error) {
       console.error('AI Smart Replies Error:', error);
-      return [];
+      return { replies: [], actions: [] };
     }
   }
 
