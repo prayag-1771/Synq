@@ -9,11 +9,13 @@ const createRedisClient = (label: string) => {
   let warnedOnce = false;
 
   const client = new Redis(redisUrl, {
-    maxRetriesPerRequest: null,
-    enableOfflineQueue: false,
-    lazyConnect: true,
-    // Stop retrying after first failure — no Redis means degraded mode
-    retryStrategy: () => null,
+    // Only retry requests once if they fail
+    maxRetriesPerRequest: 1,
+    // Try to connect 3 times, then give up (degraded mode)
+    retryStrategy: (times) => {
+      if (times > 3) return null;
+      return 1000;
+    },
   });
 
   client.on('connect', () => {
@@ -22,15 +24,10 @@ const createRedisClient = (label: string) => {
   });
 
   client.on('error', (err) => {
-    if (!warnedOnce && (err as any).code === 'ECONNREFUSED') {
+    if (!warnedOnce && ((err as any).code === 'ECONNREFUSED' || (err as any).code === 'ENOTFOUND')) {
       warnedOnce = true;
-      console.warn(`[Redis] ${label} — not available. Server running in degraded mode (no Redis).`);
+      console.warn(`[Redis] ${label} — not available. Server running in degraded mode.`);
     }
-  });
-
-  // Attempt connection but don't block startup
-  client.connect().catch(() => {
-    // Swallow — the error event above handles logging
   });
 
   return client;
