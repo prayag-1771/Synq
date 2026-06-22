@@ -29,12 +29,17 @@ export default function PinModal() {
           const data = await res.json();
           // If keys are returned, user already has them
           setIsNewUser(!data.encryptedPrivateKey);
-        } else {
+        } else if (res.status === 404) {
           // If 404, no keys exist
           setIsNewUser(true);
+        } else {
+          // Any other error (500, network error) should block to prevent accidental key overwrite
+          setError('Failed to connect to key server. Please refresh and try again.');
+          return; // don't set fetchingStatus false yet, or handle appropriately
         }
       } catch (err) {
         console.error('Failed to fetch keys', err);
+        setError('Network error checking keys.');
       } finally {
         setFetchingStatus(false);
       }
