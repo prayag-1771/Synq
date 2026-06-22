@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/authStore';
+import { useCryptoStore } from '../stores/cryptoStore';
 import { useChatStore } from '../stores/chatStore';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localDb } from '../db/localDb';
