@@ -40,26 +40,32 @@ export const tryDecryptMessage = async (content: string, senderId: string): Prom
   const { privateKeyHex } = useCryptoStore.getState();
   const { user } = useAuthStore.getState();
   
-  // If it's our own message, we shouldn't decrypt it with our private key as recipient, 
-  // wait, if we sent it, we encrypted it for the *other* person! We can't decrypt it ourselves!
-  // BUT we store our own messages in plaintext locally in localDb before sending!
-  // So if we fetch historic messages we sent from the server, we actually can't decrypt them because they were encrypted with the *other* person's public key.
-  // Wait! In Signal/WhatsApp, you encrypt the message TWICE: once for the recipient, once for yourself. Or you just rely on the localDb to have the plaintext.
-  // If localDb is cleared, the historic sent messages from the server are unreadable to us!
-  // Let's at least decrypt messages from OTHERS.
-  
   if (!privateKeyHex || content.length < 50) return content;
-  if (user && senderId === user.id) return content; // Can't decrypt our own outbox payload
 
   try {
-    const senderPk = await getPublicKeyForUser(senderId);
-    if (!senderPk) {
-      console.warn(`[tryDecryptMessage] No public key found for sender: ${senderId}`);
+    let targetPublicKey: string | null = null;
+
+    if (user && senderId === user.id) {
+      // It's our own outbox message. Curve25519 allows symmetric decryption of outbox
+      // if we calculate the shared secret using the RECIPIENT's public key and OUR private key.
+      if (!chatId) return content;
+      const chat = await localDb.chats.get(chatId);
+      if (!chat || chat.type !== 'DIRECT' || !chat.otherUser) return content;
+      
+      targetPublicKey = await getPublicKeyForUser(chat.otherUser.id);
+    } else {
+      // It's an incoming message. Decrypt using SENDER's public key.
+      targetPublicKey = await getPublicKeyForUser(senderId);
+    }
+
+    if (!targetPublicKey) {
+      console.warn(`[tryDecryptMessage] No target public key found for message decryption`);
       return content;
     }
-    return await decryptMessage(content, senderPk, privateKeyHex);
+    
+    return await decryptMessage(content, targetPublicKey, privateKeyHex);
   } catch (err) {
-    console.error(`[tryDecryptMessage] Failed to decrypt message from ${senderId}:`, err);
+    console.error(`[tryDecryptMessage] Failed to decrypt message:`, err);
     return content;
   }
 };

@@ -321,7 +321,7 @@ export default function ChatPage() {
              // We already have the plaintext locally, no need to decrypt again!
              finalContent = existing.content;
           } else {
-             finalContent = await tryDecryptMessage(m.content, m.senderId);
+             finalContent = await tryDecryptMessage(m.content, m.senderId, m.chatId);
              
              // If we successfully decrypted a message that was stuck as ciphertext in localDb, update it
              if (existing && finalContent !== m.content) {
@@ -376,7 +376,7 @@ export default function ChatPage() {
             if (existing && !isLikelyCiphertext(existing.content)) {
                finalContent = existing.content;
             } else {
-               finalContent = await tryDecryptMessage(m.content, m.senderId);
+               finalContent = await tryDecryptMessage(m.content, m.senderId, m.chatId);
                
                if (existing && finalContent !== m.content) {
                   await localDb.messages.update(m.id, { content: finalContent });
