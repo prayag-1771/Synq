@@ -22,8 +22,8 @@ async function request(endpoint: string, options: RequestInit = {}) {
     headers,
   });
 
-  // Token expired check (Forbidden - 403)
-  if (response.status === 403 && refreshToken) {
+  // Token expired check (Unauthorized - 401)
+  if (response.status === 401 && refreshToken) {
     if (!isRefreshing) {
       isRefreshing = true;
       refreshPromise = (async () => {
