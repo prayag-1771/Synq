@@ -293,7 +293,7 @@ export default function ChatPage() {
       const res = await apiService.get('/auth/users');
       if (res.ok) {
         const data = await res.json();
-        setUsersList(data);
+        setUsersList(data.users || []);
       }
     } catch (err) {
       console.error('Error fetching users:', err);
