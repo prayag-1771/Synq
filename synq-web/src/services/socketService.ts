@@ -36,7 +36,7 @@ export const getPublicKeyForUser = async (userId: string): Promise<string | null
   return pendingKeyRequests[userId];
 };
 
-export const tryDecryptMessage = async (content: string, senderId: string): Promise<string> => {
+export const tryDecryptMessage = async (content: string, senderId: string, chatId?: string): Promise<string> => {
   const { privateKeyHex } = useCryptoStore.getState();
   const { user } = useAuthStore.getState();
   
