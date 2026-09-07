@@ -351,7 +351,7 @@ export interface ResolvedRefCard {
   language?: string;
   /** Snippet lines for file references. */
   snippet?: { line: number; text: string }[];
-  stats?: { additions?: number; deletions?: number; changedFiles?: number; comments?: number };
+  stats?: { additions?: number; deletions?: number; changedFiles?: number; comments?: number; openIssues?: number };
   labels?: { name: string; color: string }[];
   checks?: { total: number; passed: number; failed: number; pending: number };
   branch?: { head?: string; base?: string };
@@ -560,7 +560,7 @@ export const resolveReference = async (client: GitHubClient, ref: ParsedGitRef):
           subtitle: repository.description || repository.language || 'Repository',
           url: repository.html_url,
           tone: 'neutral',
-          stats: { comments: repository.open_issues_count },
+          stats: { openIssues: repository.open_issues_count },
         };
       }
     }

@@ -22,7 +22,7 @@ export interface ResolvedRefCard {
   endLine?: number;
   language?: string;
   snippet?: { line: number; text: string }[];
-  stats?: { additions?: number; deletions?: number; changedFiles?: number; comments?: number };
+  stats?: { additions?: number; deletions?: number; changedFiles?: number; comments?: number; openIssues?: number };
   labels?: { name: string; color: string }[];
   checks?: { total: number; passed: number; failed: number; pending: number };
   branch?: { head?: string; base?: string };

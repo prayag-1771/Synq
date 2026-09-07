@@ -327,6 +327,13 @@ export const RefCard = ({ card, compact = false }: RefCardProps) => {
                 </span>
               ) : null}
 
+              {card.stats?.openIssues ? (
+                <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                  <CircleDot className="w-3 h-3" />
+                  {card.stats.openIssues} open
+                </span>
+              ) : null}
+
               {card.checks && <ChecksBadge checks={card.checks} />}
             </div>
 
