@@ -217,6 +217,64 @@ Message Input → Regex Command Parser → Command Router → Tool Orchestration
 
 ---
 
+## Phase 11 — GitHub-Native Developer Communication (DONE)
+> [!IMPORTANT]
+> **Priority: Very High**
+> Close the gap Slack and GitHub's own discussion tab both leave open: developers
+> talk about code in one place and the code lives in another, so every
+> conversation degrades into "which PR?", "which line?", and dead links.
+
+### Objectives
+* Make a reference in chat *be* the thing it references — resolved, live, actionable.
+* Let a developer finish the work from the conversation: review, merge, edit, ship.
+* Keep the E2EE guarantee intact while doing it.
+
+### Architecture
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Browser (plaintext)
+    participant Server as Express Server
+    participant GH as GitHub REST API
+    participant AI as Gemini
+
+    Note over User,GH: References resolve without the server seeing the message
+    User->>User: Decrypt message locally
+    User->>User: parseGitRefs() extracts #412, @sha, path:lines
+    User->>Server: POST /api/github/resolve { refs: [tokens only] }
+    Server->>GH: Fetch PR / issue / commit / file with the user's token
+    GH-->>Server: Real state (CI, reviews, diff size, file contents)
+    Server-->>User: Display-ready cards (cached 60s)
+
+    Note over User,AI: Acting on the reference
+    User->>Server: POST .../ai/pulls/412/review
+    Server->>GH: GET the unified diff
+    Server->>AI: Review this diff
+    AI-->>Server: Structured findings
+    Server-->>User: Severity-ranked review, postable back to GitHub
+```
+
+**Key constraint**: direct messages are end-to-end encrypted, so the server can
+never parse them. Parsing therefore runs client-side (`synq-web/src/lib/gitRefParser.ts`,
+mirrored on the server for agent tooling), and only the extracted tokens are sent
+for resolution. The privacy story survives the integration.
+
+### Delivered
+* **Data model**: `GitHubAccount` (AES-256-GCM encrypted tokens), `Repository`,
+  `ChatRepository` (the chat↔repo binding that makes `#123` shorthand work), `GitHubEvent`.
+* **Reference syntax**: `#123`, `owner/repo#123`, `GH-123`, `@sha`, `owner/repo@sha`,
+  `path/to/file.ts:20-40`, and every GitHub URL shape. Code blocks are masked out.
+* **Actions from chat**: approve / request changes / comment / squash-merge-rebase,
+  close issues, commit a file edit directly or as a new branch + pull request.
+* **AI over real code**: diff review with severity-ranked findings, PR and commit
+  explanation, PR description drafting, commit message generation, discussion→issue,
+  repo Q&A grounded in files it actually reads, and natural-language code edits.
+* **Live activity**: HMAC-verified webhooks → event bus → every linked chat room.
+* **Agent tools**: the autonomous agent can list PRs, read files, search code,
+  open issues and comment, scoped to the conversation's repository.
+
+---
+
 ## Immediate Next Steps (This Week)
 
 | Feature | Target Task | Priority | Status |
@@ -226,6 +284,7 @@ Message Input → Regex Command Parser → Command Router → Tool Orchestration
 | **Phase 3: AI Summaries** | Write prompt template + route using Ollama/Groq to compile chat summaries. | **High** | (DONE) |
 | **Phase 3: Commands** | Write basic slash command parser for chat inputs. | **High** | (DONE) |
 | **Phase 5: Webhooks** | Build custom outbound webhook poster for n8n tasks. | **High** | (DONE) |
+| **Phase 11: GitHub** | Live references, in-chat PR actions, code edits, diff-aware AI review. | **Very High** | (DONE) |
 
 ### 🚫 DO NOT BUILD YET
 * Multi-party Voice/Video calls.
