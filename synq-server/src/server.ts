@@ -22,6 +22,12 @@ dotenv.config();
 // Initialize internal event bus subscribers
 initializeSubscribers();
 
+// A real-time server should not drop every open socket because one request
+// path let a rejection escape. Log loudly, stay up.
+process.on('unhandledRejection', (reason) => {
+  console.error('[Server] Unhandled promise rejection:', reason);
+});
+
 const app = express();
 app.set('trust proxy', 1); // Trust first proxy (Render)
 const server = http.createServer(app);

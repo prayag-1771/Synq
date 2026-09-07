@@ -31,7 +31,17 @@ const getClient = async (req: AuthenticatedRequest, res: Response): Promise<GitH
     return null;
   }
 
-  const account = await prisma.gitHubAccount.findUnique({ where: { userId } });
+  // Every await in here must be guarded: callers invoke getClient outside their
+  // own try block, so an escaping rejection would take down the process.
+  let account;
+  try {
+    account = await prisma.gitHubAccount.findUnique({ where: { userId } });
+  } catch (error) {
+    console.error('[GitHub] Could not read the connected account:', error);
+    res.status(503).json({ message: 'Could not reach the database to read your GitHub connection. Try again shortly.' });
+    return null;
+  }
+
   if (!account) {
     res.status(428).json({ message: 'GitHub account not connected', code: 'GITHUB_NOT_CONNECTED' });
     return null;
