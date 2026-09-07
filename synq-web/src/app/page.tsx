@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/authStore';
 import { useCryptoStore } from '../stores/cryptoStore';
@@ -15,6 +15,18 @@ import PinModal from '../components/PinModal';
 import CallModal from '../components/CallModal';
 import SharedNotes from '../components/SharedNotes';
 import AIAssistant from '../components/AIAssistant';
+import MessageBody from '../components/MessageBody';
+import GitHubPanel from '../components/github/GitHubPanel';
+import ConnectGitHubModal from '../components/github/ConnectGitHubModal';
+import LinkRepoModal from '../components/github/LinkRepoModal';
+import PullRequestModal from '../components/github/PullRequestModal';
+import CommitModal from '../components/github/CommitModal';
+import CodeEditModal from '../components/github/CodeEditModal';
+import RefAutocomplete, { RefSuggestion } from '../components/github/RefAutocomplete';
+import { GitHubMark } from '../components/github/GitHubRefCard';
+import { githubService, GitHubNotConnectedError } from '../services/githubService';
+import { useGitHubStore } from '../stores/githubStore';
+import { runGithubCommand } from '../lib/githubCommands';
 import {
   MessageSquare,
   Search,
@@ -38,72 +50,6 @@ import {
   Zap
 } from 'lucide-react';
 
-function formatMessageContent(content: string) {
-  if (!content) return null;
-  
-  // Split by code blocks
-  const parts = content.split(/(```[\s\S]*?```)/g);
-  
-  return parts.map((part, index) => {
-    if (part.startsWith('```') && part.endsWith('```')) {
-      // It's a code block
-      const codeLines = part.slice(3, -3).trim().split('\n');
-      let language = 'code';
-      let code = '';
-      
-      if (codeLines[0] && !codeLines[0].includes(' ') && codeLines[0].length < 15) {
-        language = codeLines[0];
-        code = codeLines.slice(1).join('\n');
-      } else {
-        code = codeLines.join('\n');
-      }
-      
-      return (
-        <div key={index} className="my-2 border border-slate-800 rounded-lg overflow-hidden bg-slate-950 font-mono text-xs text-slate-300">
-          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-slate-800 text-[10px] text-slate-400 font-sans font-medium uppercase tracking-wider">
-            <span>{language}</span>
-            <button 
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(code);
-              }}
-              className="px-2 py-0.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition-colors"
-            >
-              Copy
-            </button>
-          </div>
-          <pre className="p-3 overflow-x-auto whitespace-pre"><code className="block">{code}</code></pre>
-        </div>
-      );
-    }
-    
-    // Process text inline styles (bold, inline code)
-    // First, split by inline code `...`
-    const inlineParts = part.split(/(`[^`]+`)/g);
-    const inlineRendered = inlineParts.map((subPart, subIndex) => {
-      if (subPart.startsWith('`') && subPart.endsWith('`')) {
-        return (
-          <code key={subIndex} className="px-1.5 py-0.5 mx-0.5 rounded bg-slate-950 border border-slate-800 text-indigo-400 font-mono text-xs select-all">
-            {subPart.slice(1, -1)}
-          </code>
-        );
-      }
-      
-      // Process bold **...**
-      const boldParts = subPart.split(/(\*\*[^*]+\*\*)/g);
-      return boldParts.map((boldPart, boldIndex) => {
-        if (boldPart.startsWith('**') && boldPart.endsWith('**')) {
-          return <strong key={boldIndex} className="font-semibold text-white">{boldPart.slice(2, -2)}</strong>;
-        }
-        return boldPart;
-      });
-    });
-    
-    return <span key={index} className="whitespace-pre-wrap">{inlineRendered}</span>;
-  });
-}
-
 export default function ChatPage() {
   const router = useRouter();
   const { user, token, isAuthenticated, clearAuth } = useAuthStore();
@@ -121,7 +67,7 @@ export default function ChatPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
-  const [activeRightPanel, setActiveRightPanel] = useState<'notes' | 'ai' | null>(null);
+  const [activeRightPanel, setActiveRightPanel] = useState<'notes' | 'ai' | 'github' | null>(null);
 
   // Slash Commands Dropdown state
   const [showCommandsDropdown, setShowCommandsDropdown] = useState(false);
@@ -133,7 +79,13 @@ export default function ChatPage() {
     { name: '/translate', description: 'Translate text (e.g. spanish)', usage: '/translate <lang> <text>' },
     { name: '/explain', description: 'Explain a technical concept or code block', usage: '/explain <code/concept>' },
     { name: '/todo', description: 'List tasks detected by AI in this chat', usage: '/todo' },
-    { name: '/agent', description: 'Run autonomous AI agent task', usage: '/agent <prompt>' }
+    { name: '/agent', description: 'Run autonomous AI agent task', usage: '/agent <prompt>' },
+    { name: '/pr', description: 'Explain a pull request from its real diff', usage: '/pr <number>' },
+    { name: '/review', description: 'AI code review of a pull request', usage: '/review <number>' },
+    { name: '/commit', description: 'Explain what a commit changed', usage: '/commit <sha>' },
+    { name: '/issue', description: 'Open a GitHub issue from this conversation', usage: '/issue [title]' },
+    { name: '/gh', description: 'Ask a question about the linked codebase', usage: '/gh <question>' },
+    { name: '/repo', description: 'Show the repository linked to this chat', usage: '/repo' }
   ];
 
   const filteredCommands = commands.filter(cmd => 
@@ -159,8 +111,25 @@ export default function ChatPage() {
   const [isSearchingSemantic, setIsSearchingSemantic] = useState(false);
   const [showSemanticModal, setShowSemanticModal] = useState(false);
 
+  // GitHub reference autocomplete state (triggered by typing `#`)
+  const [refQuery, setRefQuery] = useState<string | null>(null);
+  const [refSuggestions, setRefSuggestions] = useState<RefSuggestion[]>([]);
+  const [activeRefIndex, setActiveRefIndex] = useState(0);
+
+  const {
+    status: githubStatus,
+    setStatus: setGithubStatus,
+    setRepos: setGithubRepos,
+    reposByChat,
+    unreadActivity,
+    openConnectModal,
+    pendingComposerInsert,
+    queueComposerInsert,
+  } = useGitHubStore();
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Reactive IndexedDB Queries
   const chats = useLiveQuery(
@@ -197,6 +166,48 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     setHasMoreMessages(true); // Reset load more availability
   }, [messages.length, typingUsers]);
+
+  // 4b. GitHub connection status — drives whether references resolve at all
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    githubService
+      .getStatus()
+      .then(setGithubStatus)
+      .catch(() => setGithubStatus(null));
+  }, [isAuthenticated, setGithubStatus]);
+
+  // 4c. Repositories linked to the open conversation. These make bare `#123`
+  // and `src/file.ts:20-40` shorthand resolvable in this chat's messages.
+  useEffect(() => {
+    if (!selectedChatId || !githubStatus?.connected) return;
+
+    let cancelled = false;
+    githubService
+      .listChatRepositories(selectedChatId)
+      .then((repos) => {
+        if (!cancelled) setGithubRepos(selectedChatId, repos);
+      })
+      .catch((err) => {
+        if (!(err instanceof GitHubNotConnectedError)) {
+          console.error('Failed to load linked repositories:', err);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChatId, githubStatus?.connected, setGithubRepos]);
+
+  // 4d. Text queued by "share in chat" actions across the GitHub surfaces.
+  useEffect(() => {
+    if (!pendingComposerInsert) return;
+    setMessageInput((current) => {
+      const separator = current && !current.endsWith(' ') ? ' ' : '';
+      return `${current}${separator}${pendingComposerInsert} `;
+    });
+    queueComposerInsert(null);
+    messageInputRef.current?.focus();
+  }, [pendingComposerInsert, queueComposerInsert]);
 
   // 5. Join Room when Chat Selected
   useEffect(() => {
@@ -327,6 +338,14 @@ export default function ChatPage() {
       console.error('Error fetching users:', err);
     }
   };
+
+  /** The repository this conversation's shorthand references resolve against. */
+  const primaryRepo = useMemo(() => {
+    if (!selectedChatId) return null;
+    const repos = reposByChat[selectedChatId];
+    if (!repos || repos.length === 0) return null;
+    return repos.find((r) => r.isPrimary) || repos[0];
+  }, [selectedChatId, reposByChat]);
 
   const isLikelyCiphertext = (text: string) => text.length >= 80 && /^[0-9a-fA-F]+$/.test(text);
 
@@ -491,7 +510,10 @@ export default function ChatPage() {
     const command = parts[0].toLowerCase();
     const args = parts.slice(1).join(' ');
 
-    const recognizedCommands = ['/summarize', '/search', '/translate', '/explain', '/todo', '/agent'];
+    const recognizedCommands = [
+      '/summarize', '/search', '/translate', '/explain', '/todo', '/agent',
+      '/pr', '/review', '/commit', '/issue', '/gh', '/repo',
+    ];
     if (!recognizedCommands.includes(command)) return false;
 
     // It's a recognized command, so we intercept it.
@@ -549,6 +571,17 @@ export default function ChatPage() {
         case '/agent':
           if (!args) aiResponse = 'Usage: `/agent <prompt>`\nExample: `/agent Search for the database URL and save it as a Todo.`';
           else aiResponse = await aiService.runAgent(args, chatId);
+          break;
+        case '/pr':
+        case '/review':
+        case '/commit':
+        case '/issue':
+        case '/gh':
+        case '/repo':
+          aiResponse = await runGithubCommand(command, args, chatId, {
+            connected: Boolean(githubStatus?.connected),
+            repos: reposByChat[chatId] || [],
+          });
           break;
       }
 
@@ -618,6 +651,16 @@ export default function ChatPage() {
       setActiveCommandIndex(0);
     }
 
+    // Typing `#` opens the pull request / issue picker for the linked repository.
+    const caret = e.target.selectionStart ?? val.length;
+    const refMatch = val.slice(0, caret).match(/(?:^|\s)#([\w-]*)$/);
+    if (refMatch && primaryRepo) {
+      setRefQuery(refMatch[1]);
+      setActiveRefIndex(0);
+    } else if (refQuery !== null) {
+      setRefQuery(null);
+    }
+
     if (!selectedChatId) return;
 
     if (!isTyping) {
@@ -635,7 +678,46 @@ export default function ChatPage() {
     }, 2000);
   };
 
+  /** Replaces the partial `#…` token at the caret with the chosen reference. */
+  const selectRefSuggestion = (item: RefSuggestion) => {
+    const input = messageInputRef.current;
+    const caret = input?.selectionStart ?? messageInput.length;
+    const before = messageInput.slice(0, caret).replace(/#[\w-]*$/, `#${item.number} `);
+    const after = messageInput.slice(caret);
+
+    setMessageInput(before + after);
+    setRefQuery(null);
+
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(before.length, before.length);
+    });
+  };
+
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (refQuery !== null && refSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveRefIndex((prev) => (prev + 1) % refSuggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveRefIndex((prev) => (prev - 1 + refSuggestions.length) % refSuggestions.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        selectRefSuggestion(refSuggestions[activeRefIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setRefQuery(null);
+        return;
+      }
+    }
+
     if (showCommandsDropdown && filteredCommands.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -695,6 +777,13 @@ export default function ChatPage() {
     <div className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
       <PinModal />
       <CallModal />
+
+      {/* GitHub surfaces — opened from references, the panel, or the composer */}
+      <ConnectGitHubModal />
+      {selectedChatId && <LinkRepoModal chatId={selectedChatId} />}
+      <PullRequestModal />
+      <CommitModal />
+      <CodeEditModal />
       
       {/* Semantic Search Modal */}
       {showSemanticModal && (
@@ -966,6 +1055,33 @@ export default function ChatPage() {
                   <FileText className="w-5 h-5" />
                 </button>
 
+                {/* GitHub Workspace Toggle */}
+                <button
+                  onClick={() => setActiveRightPanel(activeRightPanel === 'github' ? null : 'github')}
+                  className={`relative p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 ${
+                    activeRightPanel === 'github'
+                    ? 'bg-slate-700/40 text-slate-100 border-slate-600/60'
+                    : 'bg-slate-800/40 hover:bg-slate-700/40 text-slate-400 hover:text-slate-200 border-slate-700/40'
+                  }`}
+                  title={
+                    primaryRepo
+                      ? `GitHub — ${primaryRepo.fullName}`
+                      : githubStatus?.connected
+                      ? 'GitHub — link a repository'
+                      : 'Connect GitHub'
+                  }
+                >
+                  <GitHubMark className="w-5 h-5" />
+                  {(unreadActivity[selectedChatId] || 0) > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-indigo-500 text-white text-[9px] font-bold flex items-center justify-center">
+                      {unreadActivity[selectedChatId] > 9 ? '9+' : unreadActivity[selectedChatId]}
+                    </span>
+                  )}
+                  {!githubStatus?.connected && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500" />
+                  )}
+                </button>
+
                 {/* AI Assistant Toggle */}
                 <button
                   onClick={() => setActiveRightPanel(activeRightPanel === 'ai' ? null : 'ai')}
@@ -1073,7 +1189,7 @@ export default function ChatPage() {
                             <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider mb-1 block flex items-center gap-1.5">
                               <Wand2 className="w-3 h-3" /> Synq AI Command
                             </span>
-                            <div className="leading-relaxed relative z-10">{formatMessageContent(message.content)}</div>
+                            <div className="relative z-10"><MessageBody content={message.content} chatId={selectedChatId} /></div>
                           </div>
                         </div>
                       </div>
@@ -1102,7 +1218,7 @@ export default function ChatPage() {
                               : 'bg-slate-900 border border-slate-800/60 text-slate-100 rounded-bl-none'
                           } ${isSending ? 'opacity-60' : ''}`}
                         >
-                          <div>{formatMessageContent(message.content)}</div>
+                          <MessageBody content={message.content} chatId={selectedChatId} />
                           
                           {/* Retry button for failed messages */}
                           {isFailed && (
@@ -1247,13 +1363,28 @@ export default function ChatPage() {
                       </div>
                     </div>
                   )}
+                  {refQuery !== null && selectedChatId && (
+                    <RefAutocomplete
+                      chatId={selectedChatId}
+                      query={refQuery}
+                      activeIndex={activeRefIndex}
+                      onSuggestions={setRefSuggestions}
+                      onSelect={selectRefSuggestion}
+                    />
+                  )}
                   <input
+                    ref={messageInputRef}
                     type="text"
                     value={messageInput}
                     onChange={handleTyping}
                     onKeyDown={handleInputKeyDown}
+                    onBlur={() => setRefQuery(null)}
                     className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 pr-10 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all duration-200"
-                    placeholder={`Write a message to ${selectedChat.name}...`}
+                    placeholder={
+                      primaryRepo
+                        ? `Message ${selectedChat.name} — # for a PR, path/file.ts:20-40 for code`
+                        : `Write a message to ${selectedChat.name}...`
+                    }
                   />
                   <button
                     type="button"
@@ -1286,6 +1417,14 @@ export default function ChatPage() {
             <AIAssistant 
               chatId={selectedChatId} 
               onClose={() => setActiveRightPanel(null)} 
+            />
+          )}
+
+          {/* GitHub Workspace Side Panel */}
+          {activeRightPanel === 'github' && selectedChatId && (
+            <GitHubPanel
+              chatId={selectedChatId}
+              onClose={() => setActiveRightPanel(null)}
             />
           )}
             </div>

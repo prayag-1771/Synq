@@ -2,6 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '../stores/authStore';
 import { useChatStore } from '../stores/chatStore';
 import { useCryptoStore } from '../stores/cryptoStore';
+import { useGitHubStore } from '../stores/githubStore';
 import { localDb } from '../db/localDb';
 import { encryptMessage, decryptMessage } from './cryptoService';
 import { apiService } from './apiService';
@@ -187,6 +188,27 @@ class SocketService {
       if (toUpdate.length > 0) {
         await localDb.messages.where('id').anyOf(toUpdate).modify({ status: 'READ' });
       }
+    });
+
+    // Repository activity pushed from a GitHub webhook, fanned out server-side
+    // to every chat the repository is linked to.
+    this.socket.on('github:activity', (event) => {
+      useGitHubStore.getState().addActivity({
+        chatId: event.chatId,
+        repoFullName: event.repoFullName,
+        eventType: event.eventType,
+        action: event.action,
+        actorLogin: event.actorLogin,
+        actorAvatar: event.actorAvatar,
+        title: event.title,
+        summary: event.summary,
+        url: event.url,
+        tone: event.tone,
+        createdAt: event.createdAt || new Date().toISOString(),
+      });
+
+      // A push or merge invalidates any reference card we have cached.
+      import('./githubService').then(({ githubService }) => githubService.invalidateRefs());
     });
 
     this.socket.on('typing:start', ({ chatId, userId, username }) => {
