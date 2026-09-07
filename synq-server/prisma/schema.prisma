@@ -15,26 +15,29 @@ model User {
   email               String            @unique
   passwordHash        String
   avatar              String?
-  publicKey           String?           // For E2EE key exchange
-  encryptedPrivateKey String?           // Encrypted with PIN-derived key for backup
-  keySalt             String?           // Salt used for deriving the key from PIN
+  publicKey           String? // For E2EE key exchange
+  encryptedPrivateKey String? // Encrypted with PIN-derived key for backup
+  keySalt             String? // Salt used for deriving the key from PIN
   status              String            @default("offline")
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   participants        ChatParticipant[]
   messages            Message[]
   refreshTokens       RefreshToken[]
+  githubAccount       GitHubAccount?
+  linkedRepositories  ChatRepository[]
 }
 
 model Chat {
-  id           String            @id @default(uuid())
-  type         ChatType          @default(DIRECT)
-  name         String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id             String            @id @default(uuid())
+  type           ChatType          @default(DIRECT)
+  name           String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   participants   ChatParticipant[]
   messages       Message[]
   extractedTasks ExtractedTask[]
+  repositories   ChatRepository[]
 }
 
 enum ChatType {
@@ -54,14 +57,14 @@ model ChatParticipant {
 }
 
 model Message {
-  id        String        @id @default(uuid())
-  chatId    String
-  senderId  String
-  content   String
-  createdAt DateTime      @default(now())
-  status    MessageStatus @default(SENT)
-  chat           Chat             @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  sender         User             @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  id             String            @id @default(uuid())
+  chatId         String
+  senderId       String
+  content        String
+  createdAt      DateTime          @default(now())
+  status         MessageStatus     @default(SENT)
+  chat           Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender         User              @relation(fields: [senderId], references: [id], onDelete: Cascade)
   embedding      MessageEmbedding?
   extractedTasks ExtractedTask[]
 
@@ -85,25 +88,102 @@ model RefreshToken {
 }
 
 model MessageEmbedding {
-  id        String   @id @default(uuid())
-  messageId String   @unique
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  id        String                     @id @default(uuid())
+  messageId String                     @unique
+  message   Message                    @relation(fields: [messageId], references: [id], onDelete: Cascade)
   vector    Unsupported("vector(768)")
-  createdAt DateTime @default(now())
+  createdAt DateTime                   @default(now())
 }
 
 model ExtractedTask {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   chatId      String
   messageId   String
   title       String
-  type        String   // e.g., 'TODO' or 'MEETING'
+  type        String // e.g., 'TODO' or 'MEETING'
   dueDate     DateTime?
-  isCompleted Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  isCompleted Boolean   @default(false)
+  createdAt   DateTime  @default(now())
 
-  chat        Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  chat    Chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([chatId, isCompleted])
+}
+
+// ---------------------------------------------------------------------------
+// GitHub Integration
+// ---------------------------------------------------------------------------
+
+/// A developer's connected GitHub identity. The access token is stored
+/// AES-256-GCM encrypted (see src/utils/crypto.util.ts) and never leaves the server.
+model GitHubAccount {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  githubLogin  String
+  githubUserId String
+  avatarUrl    String?
+  accessToken  String
+  tokenType    String   @default("pat") // 'pat' | 'oauth'
+  scopes       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// A repository known to the workspace. Shared across chats so metadata and
+/// webhook events are stored once.
+model Repository {
+  id            String           @id @default(uuid())
+  owner         String
+  name          String
+  fullName      String           @unique
+  description   String?
+  defaultBranch String           @default("main")
+  isPrivate     Boolean          @default(false)
+  htmlUrl       String
+  language      String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  links         ChatRepository[]
+  events        GitHubEvent[]
+}
+
+/// Binds a repository to a conversation. This is what makes bare `#123` and
+/// `src/foo.ts:10-20` shorthand resolvable inside a chat.
+model ChatRepository {
+  id            String     @id @default(uuid())
+  chatId        String
+  repositoryId  String
+  linkedById    String
+  isPrimary     Boolean    @default(false)
+  webhookId     String?
+  webhookSecret String?
+  notifyEvents  String     @default("pull_request,push,issues,check_suite,release")
+  createdAt     DateTime   @default(now())
+  chat          Chat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  repository    Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  linkedBy      User       @relation(fields: [linkedById], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, repositoryId])
+  @@index([repositoryId])
+}
+
+/// Webhook deliveries, kept as an activity feed per repository.
+model GitHubEvent {
+  id           String     @id @default(uuid())
+  repositoryId String
+  eventType    String
+  action       String?
+  actorLogin   String?
+  actorAvatar  String?
+  title        String?
+  summary      String?
+  url          String?
+  tone         String     @default("neutral")
+  payload      Json
+  createdAt    DateTime   @default(now())
+  repository   Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId, createdAt])
 }
