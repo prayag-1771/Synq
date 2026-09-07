@@ -54,13 +54,41 @@ export interface ChatCreatedEvent extends BaseEvent {
   };
 }
 
+export interface GithubEventReceived extends BaseEvent {
+  type: 'github.event';
+  data: {
+    repositoryId: string;
+    repoFullName: string;
+    chatIds: string[];
+    eventType: string;
+    action?: string;
+    actorLogin?: string;
+    actorAvatar?: string;
+    title?: string;
+    summary?: string;
+    url?: string;
+    tone: 'open' | 'merged' | 'closed' | 'draft' | 'success' | 'failure' | 'neutral';
+  };
+}
+
+export interface GithubRepoLinkedEvent extends BaseEvent {
+  type: 'github.repo.linked';
+  data: {
+    chatId: string;
+    repoFullName: string;
+    linkedById: string;
+  };
+}
+
 export type AppEvent =
   | MessageCreatedEvent
   | MessageReadEvent
   | MessageDeliveredEvent
   | UserOnlineEvent
   | UserOfflineEvent
-  | ChatCreatedEvent;
+  | ChatCreatedEvent
+  | GithubEventReceived
+  | GithubRepoLinkedEvent;
 
 export type EventPayloads = {
   [K in AppEvent['type']]: Extract<AppEvent, { type: K }>['data'];

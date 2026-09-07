@@ -10,10 +10,12 @@ import authRoutes from './routes/auth.routes';
 import chatRoutes from './routes/chat.routes';
 import keysRoutes from './routes/keys.routes';
 import aiRoutes from './routes/ai.routes';
+import githubRoutes, { githubWebhookRouter } from './routes/github.routes';
 import { setupSocketHandlers } from './sockets/socket';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { pubClient, subClient, clearPresenceStore, redisClient, redisAvailable } from './db/redis';
 import { initializeSubscribers } from './events/subscribers';
+import { setIO } from './sockets/registry';
 
 dotenv.config();
 
@@ -61,6 +63,10 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   crossOriginOpenerPolicy: { policy: 'unsafe-none' },
 }));
+// GitHub webhooks must be mounted before the JSON parser: signature
+// verification needs the exact bytes GitHub signed.
+app.use('/api/github', githubWebhookRouter);
+
 app.use(express.json());
 
 // Give Redis clients 500ms to connect before deciding on rate limiter store
@@ -110,6 +116,7 @@ const startServer = async () => {
   app.use('/api/chats', chatRoutes);
   app.use('/api/keys', keysRoutes);
   app.use('/api/ai', aiRoutes);
+  app.use('/api/github', githubRoutes);
 
   // Health check endpoint
   app.get('/health', (req, res) => {
@@ -117,6 +124,7 @@ const startServer = async () => {
   });
 
   // Socket handlers
+  setIO(io);
   setupSocketHandlers(io);
 
   // Start server
