@@ -189,10 +189,7 @@ class GitHubService {
 
     if (misses.length === 0) return resolved;
 
-    // Serve stale-while-revalidate: any pending fetch for the same key is reused.
-    const pending = misses.filter((r) => this.inFlight.has(r.key));
     const toFetch = misses.filter((r) => !this.inFlight.has(r.key));
-
     if (toFetch.length > 0) {
       const request = this.fetchRefs(toFetch);
       toFetch.forEach((ref) => {
@@ -203,10 +200,21 @@ class GitHubService {
       });
     }
 
+    // Snapshot the promises synchronously: an in-flight entry started by another
+    // component can settle and evict itself before we get around to awaiting it.
+    const awaiting = misses.map((ref) => ({ ref, promise: this.inFlight.get(ref.key) || null }));
+
     await Promise.all(
-      [...pending, ...toFetch].map(async (ref) => {
-        const card = await this.inFlight.get(ref.key)?.catch(() => null);
-        if (card) resolved.set(ref.key, card);
+      awaiting.map(async ({ ref, promise }) => {
+        const card = promise ? await promise.catch(() => null) : null;
+        if (card) {
+          resolved.set(ref.key, card);
+          return;
+        }
+        // Lost the race, or the server declined the reference — fall back to
+        // whatever the cache holds rather than leaving the chip spinning.
+        const stale = await localDb.gitRefs.get(ref.key);
+        if (stale) resolved.set(ref.key, stale.card);
       })
     );
 

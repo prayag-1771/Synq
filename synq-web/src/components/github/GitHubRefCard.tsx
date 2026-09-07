@@ -106,10 +106,12 @@ interface ChipProps {
 export const RefChip = ({ raw, card, loading }: ChipProps) => {
   const openRef = useOpenRef();
 
-  if (loading || !card) {
+  if (!card) {
+    // Still resolving, or the reference could not be resolved at all. Either way
+    // the text stays readable — it never gets stuck behind a permanent spinner.
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-slate-800/60 border border-slate-700/50 text-slate-400 font-mono text-[11px] align-baseline">
-        <Loader2 className="w-3 h-3 animate-spin" />
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitHubMark className="w-3 h-3 opacity-50" />}
         {raw}
       </span>
     );

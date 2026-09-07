@@ -14,6 +14,13 @@ export interface RefSuggestion {
   author?: string;
 }
 
+/**
+ * Open work per repository, cached briefly. Typing `#` repeatedly should not
+ * re-hit GitHub — it is two list calls each time and the rate limit is shared.
+ */
+const suggestionCache = new Map<string, { items: RefSuggestion[]; fetchedAt: number }>();
+const SUGGESTION_TTL_MS = 60_000;
+
 interface Props {
   chatId: string;
   /** Text typed after the `#`. */
@@ -47,6 +54,13 @@ export default function RefAutocomplete({ chatId, query, activeIndex, onSuggesti
       return;
     }
 
+    const cacheKey = `${primary.owner}/${primary.name}`;
+    const cached = suggestionCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < SUGGESTION_TTL_MS) {
+      setItems(cached.items);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
 
@@ -73,6 +87,7 @@ export default function RefAutocomplete({ chatId, query, activeIndex, onSuggesti
             author: i.author?.login,
           })),
         ].sort((a, b) => b.number - a.number);
+        suggestionCache.set(cacheKey, { items: merged, fetchedAt: Date.now() });
         setItems(merged);
       })
       .finally(() => {
