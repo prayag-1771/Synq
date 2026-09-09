@@ -97,6 +97,17 @@ export class SynqLocalDb extends Dexie {
       repoLinks: 'id, chatId, repositoryId',
       gitActivity: 'id, chatId, createdAt',
     });
+
+    // v3 — compound index so the sidebar can read each chat's newest message
+    // and unread count without loading that chat's whole history.
+    this.version(3).stores({
+      chats: 'id, updatedAt',
+      messages: 'id, chatId, createdAt, [chatId+createdAt]',
+      outbox: '++id, tempMessageId, chatId',
+      gitRefs: 'key, fetchedAt',
+      repoLinks: 'id, chatId, repositoryId',
+      gitActivity: 'id, chatId, createdAt',
+    });
   }
 }
 

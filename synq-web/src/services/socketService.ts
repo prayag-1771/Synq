@@ -105,13 +105,31 @@ class SocketService {
       transports: ['websocket'],
     });
 
+    useChatStore.getState().setConnectionState('connecting');
+
     this.socket.on('connect', () => {
       console.log('Socket connected to server');
+      useChatStore.getState().setConnectionState('online');
+
+      // Seed presence. Until this returns we report nobody as online rather
+      // than guessing — a wrong green dot is worse than no dot.
+      this.socket?.emit('presence:get_active', (userIds: string[]) => {
+        useChatStore.getState().setOnlineUsers(userIds || []);
+      });
+
       // Import syncService dynamically to prevent circular dependencies
       import('./syncService').then(({ syncService }) => {
         syncService.flushOutbox();
         syncService.syncMissingMessages();
       });
+    });
+
+    this.socket.on('user:online', ({ userId }: { userId: string }) => {
+      useChatStore.getState().setUserOnline(userId);
+    });
+
+    this.socket.on('user:offline', ({ userId }: { userId: string }) => {
+      useChatStore.getState().setUserOffline(userId);
     });
 
     this.socket.on('message:new', async (message) => {
@@ -140,14 +158,22 @@ class SocketService {
         }
       }
 
-      // 2. Put real message into local DB
+      // 2. Put real message into local DB. A message that lands in the chat the
+      // user is already looking at is read on arrival — otherwise it would sit
+      // in the unread count while being stared at.
+      const { user: currentUser } = useAuthStore.getState();
+      const isIncoming = Boolean(currentUser && message.senderId !== currentUser.id);
+      const isChatOpen = useChatStore.getState().selectedChatId === message.chatId;
+      const isWindowFocused = typeof document === 'undefined' || document.visibilityState === 'visible';
+      const readOnArrival = isIncoming && isChatOpen && isWindowFocused;
+
       await localDb.messages.put({
         id: message.id,
         chatId: message.chatId,
         senderId: message.senderId,
         content: finalContent,
         createdAt: message.createdAt,
-        status: 'SENT',
+        status: readOnArrival ? 'READ' : 'SENT',
         senderName: message.sender.username,
         senderAvatar: message.sender.avatar || undefined,
       });
@@ -157,10 +183,12 @@ class SocketService {
         updatedAt: message.createdAt,
       });
 
-      // 4. Emit delivery receipt if it's from someone else
-      const { user } = useAuthStore.getState();
-      if (user && message.senderId !== user.id) {
+      // 4. Receipts back to the sender
+      if (isIncoming) {
         this.socket?.emit('message:delivered', { chatId: message.chatId });
+        if (readOnArrival) {
+          this.socket?.emit('message:read', { chatId: message.chatId });
+        }
       }
     });
 
@@ -223,6 +251,11 @@ class SocketService {
 
     this.socket.on('disconnect', () => {
       console.log('Socket disconnected');
+      useChatStore.getState().setConnectionState('offline');
+    });
+
+    this.socket.on('connect_error', () => {
+      useChatStore.getState().setConnectionState('offline');
     });
 
     this.socket.on('error', async (errorPayload: any) => {
@@ -322,10 +355,19 @@ class SocketService {
     }
   }
 
-  markAsRead(chatId: string) {
-    if (this.socket) {
-      this.socket.emit('message:read', { chatId });
-    }
+  async markAsRead(chatId: string) {
+    this.socket?.emit('message:read', { chatId });
+
+    // The server only tracks read state for the *sender's* view. Clearing it
+    // locally is what makes this chat's unread badge go away.
+    const { user } = useAuthStore.getState();
+    if (!user) return;
+
+    await localDb.messages
+      .where('chatId')
+      .equals(chatId)
+      .filter((m) => m.senderId !== user.id && m.senderId !== 'SYSTEM_AI' && m.status !== 'READ')
+      .modify({ status: 'READ' });
   }
 }
 

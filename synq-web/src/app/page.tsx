@@ -28,6 +28,14 @@ import { githubService, GitHubNotConnectedError } from '../services/githubServic
 import { useGitHubStore } from '../stores/githubStore';
 import { runGithubCommand } from '../lib/githubCommands';
 import {
+  useChatSummaries,
+  formatPreview,
+  formatListTimestamp,
+  formatDayLabel,
+  isSameDay,
+  continuesGroup,
+} from '../lib/chatDisplay';
+import {
   MessageSquare,
   Search,
   Send,
@@ -47,7 +55,8 @@ import {
   Check,
   CheckCheck,
   Copy,
-  Zap
+  Zap,
+  ChevronDown
 } from 'lucide-react';
 
 export default function ChatPage() {
@@ -57,6 +66,9 @@ export default function ChatPage() {
     selectedChatId,
     typingUsers,
     setSelectedChatId,
+    onlineUserIds,
+    presenceReady,
+    connectionState,
   } = useChatStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -127,6 +139,10 @@ export default function ChatPage() {
     queueComposerInsert,
   } = useGitHubStore();
 
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [missedWhileScrolledUp, setMissedWhileScrolledUp] = useState(0);
+
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
@@ -161,11 +177,60 @@ export default function ChatPage() {
     };
   }, [isAuthenticated, token]);
 
-  // 4. Auto Scroll to Bottom on New Messages
+  const activeTypingCount = selectedChatId ? (typingUsers[selectedChatId] || []).length : 0;
+
+  // 4. Autoscroll — only when the reader is already at the bottom, or the new
+  // message is their own. Scrolling someone away from history they are reading
+  // is worse than letting them miss one message.
+  const newestMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+  const newestIsMine = messages.length > 0 && messages[messages.length - 1].senderId === user?.id;
+
   useEffect(() => {
+    if (!newestMessageId) return;
+    if (!isNearBottom && !newestIsMine) {
+      setMissedWhileScrolledUp((count) => count + 1);
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setHasMoreMessages(true); // Reset load more availability
-  }, [messages.length, typingUsers]);
+  }, [newestMessageId]);
+
+  // Typing indicators only nudge the view when already pinned to the bottom.
+  useEffect(() => {
+    if (isNearBottom && activeTypingCount > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeTypingCount]);
+
+  // Anything that arrived while scrolled up or on a hidden tab is read once the
+  // reader is actually looking at the bottom of the open conversation.
+  useEffect(() => {
+    if (!selectedChatId || !isNearBottom) return;
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    socketService.markAsRead(selectedChatId);
+  }, [selectedChatId, isNearBottom, newestMessageId]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && selectedChatId && isNearBottom) {
+        socketService.markAsRead(selectedChatId);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [selectedChatId, isNearBottom]);
+
+  const handleMessagesScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    setIsNearBottom(atBottom);
+    if (atBottom) setMissedWhileScrolledUp(0);
+  };
+
+  const jumpToLatest = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setIsNearBottom(true);
+    setMissedWhileScrolledUp(0);
+  };
 
   // 4b. GitHub connection status — drives whether references resolve at all
   useEffect(() => {
@@ -217,6 +282,16 @@ export default function ChatPage() {
       fetchMessagesInitial(selectedChatId);
       setSummary(null);
       setSmartReplies([]);
+
+      // Opening a conversation should land at the newest message, instantly —
+      // a smooth scroll through the whole history reads as a glitch.
+      setIsNearBottom(true);
+      setMissedWhileScrolledUp(0);
+      setHasMoreMessages(true);
+      requestAnimationFrame(() => {
+        const el = messagesContainerRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
     }
   }, [selectedChatId]);
 
@@ -339,6 +414,16 @@ export default function ChatPage() {
     }
   };
 
+  /** Newest message + unread count per chat, kept live by Dexie. */
+  const chatSummaries = useChatSummaries(
+    useMemo(() => chats.map((c) => c.id), [chats]),
+    user?.id
+  );
+
+  /** Presence, straight from the server rather than assumed. */
+  const isUserOnline = (userId?: string | null) =>
+    Boolean(presenceReady && userId && onlineUserIds.includes(userId));
+
   /** The repository this conversation's shorthand references resolve against. */
   const primaryRepo = useMemo(() => {
     if (!selectedChatId) return null;
@@ -432,6 +517,10 @@ export default function ChatPage() {
 
     try {
       setLoadingMore(true);
+      // Prepending changes scrollHeight; hold the reader's place afterwards.
+      const container = messagesContainerRef.current;
+      const heightBefore = container?.scrollHeight ?? 0;
+      const topBefore = container?.scrollTop ?? 0;
       const cursor = oldestMessage.createdAt;
       const res = await apiService.get(`/chats/${selectedChatId}/messages?cursor=${encodeURIComponent(cursor)}&limit=30`);
       
@@ -473,6 +562,10 @@ export default function ChatPage() {
           await localDb.messages.bulkPut(localMessages);
         }
       }
+      requestAnimationFrame(() => {
+        const el = messagesContainerRef.current;
+        if (el) el.scrollTop = topBefore + (el.scrollHeight - heightBefore);
+      });
     } catch (err) {
       console.error('Error loading older messages:', err);
     } finally {
@@ -878,9 +971,25 @@ export default function ChatPage() {
               <span className="font-semibold text-sm leading-tight text-white">
                 {user.username}
               </span>
-              <span className="text-xs text-emerald-400 flex items-center gap-1 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                Active
+              <span
+                className={`text-xs flex items-center gap-1.5 mt-0.5 ${
+                  connectionState === 'online'
+                    ? 'text-emerald-400'
+                    : connectionState === 'connecting'
+                    ? 'text-amber-400'
+                    : 'text-slate-500'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    connectionState === 'online'
+                      ? 'bg-emerald-500'
+                      : connectionState === 'connecting'
+                      ? 'bg-amber-500 animate-pulse'
+                      : 'bg-slate-600'
+                  }`}
+                />
+                {connectionState === 'online' ? 'Connected' : connectionState === 'connecting' ? 'Connecting…' : 'Offline'}
               </span>
             </div>
           </div>
@@ -965,46 +1074,71 @@ export default function ChatPage() {
             chats.map((chat) => {
               const isSelected = chat.id === selectedChatId;
               const hasTyping = (typingUsers[chat.id] || []).length > 0;
-              
+              const summary = chatSummaries[chat.id];
+              const unread = summary?.unreadCount || 0;
+              const online = isUserOnline(chat.otherUser?.id);
+              const stampSource = summary?.lastMessage?.createdAt || chat.updatedAt;
+
               return (
                 <button
                   key={chat.id}
                   onClick={() => setSelectedChatId(chat.id)}
+                  aria-current={isSelected ? 'true' : undefined}
                   className={`w-full p-3 flex items-center gap-3 rounded-xl border text-left transition-all duration-200 ${
                     isSelected
                       ? 'bg-indigo-600/10 border-indigo-500/30 text-white'
                       : 'bg-transparent border-transparent hover:bg-slate-900/60 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <img
                       src={chat.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${chat.name}`}
-                      alt={chat.name}
+                      alt=""
                       className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-850"
                     />
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-950" />
+                    {/* Only drawn once the server has told us who is actually connected. */}
+                    {online && (
+                      <span
+                        className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-slate-950"
+                        title={`${chat.name} is online`}
+                      />
+                    )}
                   </div>
+
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold truncate text-slate-200">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span
+                        className={`text-sm truncate ${
+                          unread > 0 ? 'font-bold text-white' : 'font-semibold text-slate-200'
+                        }`}
+                      >
                         {chat.name}
                       </span>
-                      <span className="text-[10px] text-slate-500">
-                        {chat.updatedAt
-                          ? new Date(chat.updatedAt).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : ''}
+                      <span className={`text-[10px] shrink-0 ${unread > 0 ? 'text-indigo-400' : 'text-slate-500'}`}>
+                        {formatListTimestamp(stampSource)}
                       </span>
                     </div>
-                    <p className="text-xs truncate mt-0.5">
-                      {hasTyping ? (
-                        <span className="text-indigo-400 font-medium animate-pulse">is typing...</span>
-                      ) : (
-                        'Open conversation'
+
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className="text-xs truncate min-w-0">
+                        {hasTyping ? (
+                          <span className="text-indigo-400 font-medium">typing…</span>
+                        ) : (
+                          <span className={unread > 0 ? 'text-slate-300' : 'text-slate-500'}>
+                            {formatPreview(summary?.lastMessage ?? null, user.id)}
+                          </span>
+                        )}
+                      </p>
+
+                      {unread > 0 && (
+                        <span
+                          className="shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center"
+                          aria-label={`${unread} unread messages`}
+                        >
+                          {unread > 99 ? '99+' : unread}
+                        </span>
                       )}
-                    </p>
+                    </div>
                   </div>
                 </button>
               );
@@ -1033,10 +1167,19 @@ export default function ChatPage() {
                   <span className="text-sm font-semibold text-white leading-tight">
                     {selectedChat.name}
                   </span>
-                  <span className="text-xs text-slate-500 mt-0.5">
-                    {activeTyping.length > 0
-                      ? `${activeTyping.map((tu) => tu.username).join(', ')} is typing...`
-                      : 'Online'}
+                  <span className="text-xs mt-0.5 flex items-center gap-1.5">
+                    {activeTyping.length > 0 ? (
+                      <span className="text-indigo-400">
+                        {activeTyping.map((tu) => tu.username).join(', ')} is typing…
+                      </span>
+                    ) : isUserOnline(selectedChat.otherUser?.id) ? (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="text-emerald-400">Online</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">Offline</span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -1116,9 +1259,13 @@ export default function ChatPage() {
             {/* Split Pane Container */}
             <div className="flex-1 flex overflow-hidden">
               {/* Main Chat Content */}
-              <div className="flex-1 flex flex-col min-w-0 bg-slate-950/80">
+              <div className="flex-1 flex flex-col min-w-0 bg-slate-950/80 relative">
                 {/* Chat Pane Message History */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0 custom-scrollbar">
+                <div
+                  ref={messagesContainerRef}
+                  onScroll={handleMessagesScroll}
+                  className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar relative"
+                >
               {/* Catch Me Up AI Action */}
               {messages.length > 5 && (
                 <div className="flex justify-center mb-6">
@@ -1169,15 +1316,33 @@ export default function ChatPage() {
               )}
 
               {messages.length > 0 ? (
-                messages.map((message) => {
+                messages.map((message, messageIndex) => {
                   const isMe = message.senderId === user.id;
                   const isSending = message.status === 'SENDING';
                   const isFailed = message.status === 'FAILED';
                   const isAI = message.senderId === 'SYSTEM_AI';
 
+                  const previous = messages[messageIndex - 1];
+                  const startsNewDay = !previous || !isSameDay(previous.createdAt, message.createdAt);
+                  const grouped = !startsNewDay && continuesGroup(previous, message);
+                  const next = messages[messageIndex + 1];
+                  const endsGroup = !next || !continuesGroup(message, next);
+
+                  const daySeparator = startsNewDay ? (
+                    <div key={`day-${message.id}`} className="flex items-center gap-3 py-2">
+                      <div className="flex-1 h-px bg-slate-800/70" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-2 py-1 rounded-full bg-slate-900/60 border border-slate-800/60">
+                        {formatDayLabel(message.createdAt)}
+                      </span>
+                      <div className="flex-1 h-px bg-slate-800/70" />
+                    </div>
+                  ) : null;
+
                   if (isAI) {
                     return (
-                      <div key={message.id} className="flex gap-3 max-w-[85%] mr-auto group">
+                      <React.Fragment key={`wrap-${message.id}`}>
+                      {daySeparator}
+                      <div key={message.id} className="flex gap-3 max-w-[85%] mr-auto group mt-4">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg border border-white/10 self-end mb-1">
                           <BrainCircuit className="w-4 h-4 text-white" />
                         </div>
@@ -1193,21 +1358,30 @@ export default function ChatPage() {
                           </div>
                         </div>
                       </div>
+                      </React.Fragment>
                     );
                   }
 
                   return (
+                    <React.Fragment key={`wrap-${message.id}`}>
+                    {daySeparator}
                     <div
-                      key={message.id}
-                      className={`flex gap-3 max-w-[70%] ${isMe ? 'ml-auto flex-row-reverse' : 'mr-auto'}`}
+                      className={`flex gap-3 max-w-[70%] ${isMe ? 'ml-auto flex-row-reverse' : 'mr-auto'} ${
+                        grouped ? 'mt-1' : 'mt-4'
+                      }`}
                     >
-                      {!isMe && (
-                        <img
-                          src={message.senderAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${message.senderName}`}
-                          alt={message.senderName}
-                          className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/50 self-end mb-1"
-                        />
-                      )}
+                      {/* A grouped message keeps the avatar column but leaves it
+                          empty, so consecutive bubbles stay aligned. */}
+                      {!isMe &&
+                        (grouped ? (
+                          <div className="w-8 shrink-0" aria-hidden="true" />
+                        ) : (
+                          <img
+                            src={message.senderAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${message.senderName}`}
+                            alt=""
+                            className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/50 self-end mb-1 shrink-0"
+                          />
+                        ))}
                       <div className="flex flex-col">
                         <div
                           className={`px-4 py-2.5 rounded-2xl text-sm shadow-md transition-all relative group ${
@@ -1232,9 +1406,9 @@ export default function ChatPage() {
                           )}
                         </div>
                         <div
-                          className={`text-[10px] text-slate-500 mt-1 flex items-center gap-1.5 ${
+                          className={`text-[10px] text-slate-500 flex items-center gap-1.5 ${
                             isMe ? 'justify-end' : 'justify-start'
-                          }`}
+                          } ${endsGroup || isFailed || isSending ? 'mt-1' : 'h-0 overflow-hidden'}`}
                         >
                           {new Date(message.createdAt).toLocaleTimeString([], {
                             hour: '2-digit',
@@ -1258,6 +1432,7 @@ export default function ChatPage() {
                         </div>
                       </div>
                     </div>
+                    </React.Fragment>
                   );
                 })
               ) : (
@@ -1272,10 +1447,10 @@ export default function ChatPage() {
 
               {/* Typing indicator inside messaging timeline */}
               {activeTyping.length > 0 && (
-                <div className="flex gap-3 max-w-[70%] mr-auto items-center">
+                <div className="flex gap-3 max-w-[70%] mr-auto items-center mt-4">
                   <img
                     src={selectedChat.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${selectedChat.name}`}
-                    alt="typing"
+                    alt=""
                     className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/50"
                   />
                   <div className="bg-slate-900 border border-slate-800/60 px-4 py-3 rounded-2xl rounded-bl-none flex items-center gap-1 shadow-sm">
@@ -1288,6 +1463,19 @@ export default function ChatPage() {
 
               <div ref={messagesEndRef} />
             </div>
+
+            {!isNearBottom && (
+              <button
+                onClick={jumpToLatest}
+                aria-label="Jump to latest messages"
+                className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 pl-3 pr-3.5 py-2 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 shadow-2xl transition-colors animate-in fade-in slide-in-from-bottom-2"
+              >
+                <ChevronDown className="w-4 h-4" />
+                {missedWhileScrolledUp > 0
+                  ? `${missedWhileScrolledUp} new message${missedWhileScrolledUp === 1 ? '' : 's'}`
+                  : 'Jump to latest'}
+              </button>
+            )}
 
             {/* Smart Replies & Chat Pane Message Input */}
             <div className="p-4 bg-slate-900/10 backdrop-blur-md border-t border-slate-800/60 flex flex-col gap-3">
