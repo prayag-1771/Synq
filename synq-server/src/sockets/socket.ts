@@ -43,38 +43,50 @@ export const setupSocketHandlers = (io: Server) => {
     }
   });
 
-  io.on('connection', async (socket: CustomSocket) => {
+  io.on('connection', (socket: CustomSocket) => {
     if (!socket.user) return;
     const userId = socket.user.userId;
     const username = socket.user.username;
 
     console.log(`User connected: ${username} (${userId}) - Socket: ${socket.id}`);
 
-    // Register active session in Redis
-    const isNewOnline = await registerUserPresence(userId);
-
-    if (isNewOnline) {
-      // Broadcast user online status
-      socket.broadcast.emit('user:online', { userId });
-      // Publish to internal event bus
-      eventBus.publish('user.online', { userId }).catch(console.error);
-    }
-
     // Join room for direct events specifically to this user
     socket.join(userId);
 
-    // Join rooms for all chats the user is part of
-    try {
-      const userChats = await prisma.chatParticipant.findMany({
-        where: { userId },
-        select: { chatId: true },
-      });
-      userChats.forEach(({ chatId }) => {
-        socket.join(chatId);
-      });
-    } catch (err) {
-      console.error('Error joining user to rooms:', err);
-    }
+    /**
+     * Presence registration and chat-room joins, run after the listeners below
+     * are attached.
+     *
+     * This used to be awaited inline, before any socket.on() call. Because
+     * Socket.IO drops events for which no listener is registered yet, anything
+     * a client emitted immediately on connect — presence:get_active, chat:join —
+     * was silently discarded for as long as the database took to answer. On a
+     * cold Postgres instance that is seconds, and the client waits forever for
+     * an acknowledgement that will never come.
+     */
+    const bootstrapSession = async () => {
+      const isNewOnline = await registerUserPresence(userId);
+
+      if (isNewOnline) {
+        // Broadcast user online status
+        socket.broadcast.emit('user:online', { userId });
+        // Publish to internal event bus
+        eventBus.publish('user.online', { userId }).catch(console.error);
+      }
+
+      // Join rooms for all chats the user is part of
+      try {
+        const userChats = await prisma.chatParticipant.findMany({
+          where: { userId },
+          select: { chatId: true },
+        });
+        userChats.forEach(({ chatId }) => {
+          socket.join(chatId);
+        });
+      } catch (err) {
+        console.error('Error joining user to rooms:', err);
+      }
+    };
 
     // 1. Join Chat Room
     socket.on('chat:join', (chatId: string) => {
@@ -254,5 +266,8 @@ export const setupSocketHandlers = (io: Server) => {
         eventBus.publish('user.offline', { userId }).catch(console.error);
       }
     });
+
+    // Every listener is attached; only now start the async session setup.
+    bootstrapSession().catch((err) => console.error('Session bootstrap failed:', err));
   });
 };

@@ -52,16 +52,35 @@ redisClient.once('connect', () => { redisAvailable = true; });
 const PRESENCE_KEY = 'synq:active_users';
 
 /**
+ * Presence falls back to an in-process counter when Redis is unavailable.
+ *
+ * Redis exists here to share presence across instances; without it the server
+ * already runs single-instance (no Socket.IO adapter), so a local map is the
+ * correct source of truth rather than reporting everyone as offline.
+ */
+const localPresence = new Map<string, number>();
+
+const useLocalPresence = () => !redisAvailable;
+
+/**
  * Registers a user connection. Increments connection count.
  * Returns true if the user transitioned from offline -> online (count became 1).
  */
 export const registerUserPresence = async (userId: string): Promise<boolean> => {
+  if (useLocalPresence()) {
+    const next = (localPresence.get(userId) || 0) + 1;
+    localPresence.set(userId, next);
+    return next === 1;
+  }
+
   try {
     const newCount = await redisClient.hincrby(PRESENCE_KEY, userId, 1);
     return newCount === 1;
   } catch (err) {
     console.error(`Failed to register presence for user ${userId}:`, err);
-    return false;
+    const next = (localPresence.get(userId) || 0) + 1;
+    localPresence.set(userId, next);
+    return next === 1;
   }
 };
 
@@ -70,6 +89,18 @@ export const registerUserPresence = async (userId: string): Promise<boolean> => 
  * Returns true if the user transitioned from online -> offline (count <= 0).
  */
 export const deregisterUserPresence = async (userId: string): Promise<boolean> => {
+  const dropLocal = (): boolean => {
+    const next = (localPresence.get(userId) || 0) - 1;
+    if (next <= 0) {
+      localPresence.delete(userId);
+      return true;
+    }
+    localPresence.set(userId, next);
+    return false;
+  };
+
+  if (useLocalPresence()) return dropLocal();
+
   try {
     const luaScript = `
       local count = redis.call('hincrby', KEYS[1], ARGV[1], -1)
@@ -79,13 +110,13 @@ export const deregisterUserPresence = async (userId: string): Promise<boolean> =
       end
       return 0
     `;
-    
+
     // Eval returns 1 if user transitioned offline, 0 if still online
     const result = await redisClient.eval(luaScript, 1, PRESENCE_KEY, userId);
     return result === 1;
   } catch (err) {
     console.error(`Failed to deregister presence for user ${userId}:`, err);
-    return false;
+    return dropLocal();
   }
 };
 
@@ -93,12 +124,14 @@ export const deregisterUserPresence = async (userId: string): Promise<boolean> =
  * Checks if a user is online.
  */
 export const isUserOnline = async (userId: string): Promise<boolean> => {
+  if (useLocalPresence()) return localPresence.has(userId);
+
   try {
     const exists = await redisClient.hexists(PRESENCE_KEY, userId);
     return exists === 1;
   } catch (err) {
     console.error(`Failed to check online status for user ${userId}:`, err);
-    return false;
+    return localPresence.has(userId);
   }
 };
 
@@ -106,11 +139,13 @@ export const isUserOnline = async (userId: string): Promise<boolean> => {
  * Gets all online user IDs.
  */
 export const getActiveUsers = async (): Promise<string[]> => {
+  if (useLocalPresence()) return Array.from(localPresence.keys());
+
   try {
     return await redisClient.hkeys(PRESENCE_KEY);
   } catch (err) {
     console.error('Failed to get active users:', err);
-    return [];
+    return Array.from(localPresence.keys());
   }
 };
 
@@ -118,6 +153,10 @@ export const getActiveUsers = async (): Promise<string[]> => {
  * Clears the presence cache (run on startup).
  */
 export const clearPresenceStore = async (): Promise<void> => {
+  localPresence.clear();
+
+  if (useLocalPresence()) return;
+
   try {
     await redisClient.del(PRESENCE_KEY);
     console.log('Redis presence store cleared successfully on startup.');

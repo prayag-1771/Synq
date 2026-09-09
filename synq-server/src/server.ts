@@ -91,10 +91,9 @@ const startServer = async () => {
     console.warn('[Server] Redis unavailable — Socket.IO running in single-instance mode (no horizontal scaling).');
   }
 
-  // Clear stale presence on start (only if Redis is available)
-  if (redisAvailable) {
-    clearPresenceStore();
-  }
+  // Clear stale presence on start. Safe in both modes: with Redis it wipes the
+  // shared hash, without it there is only this process's map to reset.
+  clearPresenceStore();
 
   // Global Rate Limiter — uses Redis store when available, memory store as fallback
   const limiterOptions: any = {
