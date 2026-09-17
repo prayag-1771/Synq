@@ -123,10 +123,10 @@ export default function AIAssistant({ chatId, onClose, onSelectMessage }: AIAssi
   };
 
   return (
-    <div className="w-[35%] flex flex-col bg-surface border-l border-line/60 z-20 shadow-2xl relative transition-all duration-300">
+    <div className="w-[38%] min-w-[380px] flex flex-col bg-surface border-l border-line z-20 shadow-2xl relative">
       
       {/* Header */}
-      <div className="h-[73px] p-4 border-b border-line/60 flex items-center justify-between bg-surface/50 backdrop-blur-sm">
+      <div className="h-14 shrink-0 px-4 border-b border-line flex items-center justify-between">
         <div className="flex items-center gap-3 text-purple-400 font-semibold">
           <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
             <BrainCircuit className="w-5 h-5" />

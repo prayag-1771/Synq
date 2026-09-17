@@ -2,117 +2,157 @@ import React, { useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import CollaborationCaret from '@tiptap/extension-collaboration-caret';
+import { Placeholder } from '@tiptap/extensions';
 import * as Y from 'yjs';
 import { socketService } from '../services/socketService';
 import { YjsE2EEProvider } from '../services/yjsSocketProvider';
 import { useAuthStore } from '../stores/authStore';
-import { FileText, Loader2, X } from 'lucide-react';
+import { useChatStore } from '../stores/chatStore';
+import { FileText, Loader2, X, WifiOff } from 'lucide-react';
 
 export default function SharedNotes({ chatId, onClose }: { chatId: string, onClose: () => void }) {
   const [provider, setProvider] = useState<YjsE2EEProvider | null>(null);
   const { user } = useAuthStore();
+  // The canvas needs a live socket. Tracking connection state means the editor
+  // builds itself as soon as one exists, instead of sitting on a spinner
+  // forever because the socket happened to be down when the panel opened.
+  const connectionState = useChatStore((s) => s.connectionState);
 
   useEffect(() => {
-    if (!socketService.getSocket()) return;
+    const socket = socketService.getSocket();
+    if (!socket) return;
 
     // Create a new Yjs Document for this chat
     const ydoc = new Y.Doc();
-    
+
     // Create the E2EE provider
-    const yProvider = new YjsE2EEProvider(ydoc, socketService.getSocket()!, chatId);
+    const yProvider = new YjsE2EEProvider(ydoc, socket, chatId);
     setProvider(yProvider);
 
     return () => {
+      setProvider(null);
       yProvider.destroy();
       ydoc.destroy();
     };
-  }, [chatId]);
+  }, [chatId, connectionState]);
 
   const editor = useEditor({
+    // Rendering on the client only; opting out avoids a hydration mismatch.
+    immediatelyRender: false,
     editorProps: {
       attributes: {
         class: 'prose prose-invert prose-sm sm:prose-base lg:prose-lg xl:prose-2xl m-5 focus:outline-none max-w-none',
       },
     },
     extensions: [
-      StarterKit.configure({ history: false } as any), // History is handled by Yjs CRDTs
+      // Yjs owns undo history; the built-in stack would fight it. In Tiptap v3
+      // this option is `undoRedo` — the old `history` key was silently ignored.
+      StarterKit.configure({ undoRedo: false }),
+      Placeholder.configure({
+        placeholder: 'Start typing — everyone here sees it as you type.',
+        // Otherwise the hint only appears once the caret is already in the
+        // canvas, so an untouched panel just looks blank.
+        showOnlyCurrent: false,
+      }),
       provider ? Collaboration.configure({ document: provider.doc }) : undefined,
-      provider ? CollaborationCursor.configure({
-        provider: provider,
-        user: { 
-          name: user?.username || 'Anonymous', 
-          color: provider.awareness.getLocalState()?.user?.color || '#818cf8' 
-        }
-      }) : undefined,
+      provider
+        ? CollaborationCaret.configure({
+            provider,
+            user: {
+              name: user?.username || 'Anonymous',
+              color: provider.awareness.getLocalState()?.user?.color || '#818cf8',
+            },
+          })
+        : undefined,
     ].filter(Boolean) as any,
   }, [provider]);
 
   if (!provider || !editor) {
+    const offline = connectionState === 'offline';
     return (
-      <div className="w-[35%] flex items-center justify-center bg-surface border-l border-line/60 z-20 shadow-2xl relative transition-all duration-300">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      <div className="w-[38%] min-w-[380px] flex flex-col items-center justify-center gap-3 bg-surface border-l border-line z-20 shadow-2xl relative text-center px-8">
+        {offline ? (
+          <>
+            <WifiOff className="w-8 h-8 text-faint" />
+            <p className="text-[13px] font-medium text-muted">Canvas needs a connection</p>
+            <p className="text-[11.5px] text-subtle leading-relaxed">
+              The shared canvas syncs over the realtime channel. It will open as soon as you are back online.
+            </p>
+          </>
+        ) : (
+          <Loader2 className="w-6 h-6 animate-spin text-accent-bright" />
+        )}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 p-1.5 rounded-lg text-subtle hover:text-ink hover:bg-hover transition-colors"
+          aria-label="Close shared canvas"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="w-[35%] flex flex-col bg-surface border-l border-line/60 z-20 shadow-2xl relative transition-all duration-300">
+    <div className="w-[38%] min-w-[380px] flex flex-col bg-surface border-l border-line z-20 shadow-2xl relative">
       <style>{`
-        .collaboration-cursor__caret {
-          border-left: 2px solid #fff;
-          border-right: 2px solid #fff;
-          margin-left: -2px;
-          margin-right: -2px;
+        /* Tiptap v3 renames these from collaboration-cursor__* */
+        .collaboration-carets__caret {
+          border-left: 1px solid;
+          border-right: 1px solid;
+          margin-left: -1px;
+          margin-right: -1px;
           pointer-events: none;
           position: relative;
           word-break: normal;
-          animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
-        .collaboration-cursor__label {
+        .collaboration-carets__label {
           border-radius: 4px 4px 4px 0;
           color: #fff;
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 600;
-          left: -2px;
+          left: -1px;
           line-height: normal;
-          padding: 2px 6px;
+          padding: 1px 5px;
           position: absolute;
           top: -1.4em;
           user-select: none;
           white-space: nowrap;
-          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
         .ProseMirror p.is-editor-empty:first-child::before {
-          color: #475569;
-          content: 'Start typing to co-edit securely...';
+          /* The extension supplies the text as an attribute; CSS renders it. */
+          content: attr(data-placeholder);
+          color: var(--ink-faint);
           float: left;
           height: 0;
           pointer-events: none;
         }
       `}</style>
-      
-      {/* Header */}
-      <div className="h-[73px] p-4 border-b border-line/60 flex items-center justify-between bg-surface/50 backdrop-blur-sm">
-        <div className="flex items-center gap-3 text-indigo-400 font-semibold">
-          <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-            <FileText className="w-5 h-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-ink">Shared Canvas</span>
-            <span className="text-[10px] text-indigo-400 flex items-center gap-1 font-normal tracking-wide">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-              E2EE Active
-            </span>
+
+      {/* Header — matches the chat header and the GitHub panel */}
+      <div className="h-14 shrink-0 px-4 flex items-center gap-2.5 border-b border-line">
+        <div className="w-7 h-7 rounded-lg bg-raised border border-line flex items-center justify-center text-accent-bright shrink-0">
+          <FileText className="w-3.5 h-3.5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-ink leading-tight">Shared canvas</div>
+          <div className="text-[10.5px] text-subtle leading-tight flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-positive" />
+            End-to-end encrypted
           </div>
         </div>
-        <button onClick={onClose} className="p-2 text-muted hover:bg-raised hover:text-white rounded-xl transition-all">
-          <X className="w-5 h-5" />
+        <button
+          onClick={onClose}
+          aria-label="Close shared canvas"
+          className="p-1.5 rounded-lg text-subtle hover:text-ink hover:bg-hover transition-colors shrink-0"
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Editor Canvas */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-canvas/30">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         <EditorContent editor={editor} className="min-h-full" />
       </div>
     </div>
