@@ -50,14 +50,14 @@ export default function SharedNotes({ chatId, onClose }: { chatId: string, onClo
 
   if (!provider || !editor) {
     return (
-      <div className="w-[35%] flex items-center justify-center bg-slate-900 border-l border-slate-800/60 z-20 shadow-2xl relative transition-all duration-300">
+      <div className="w-[35%] flex items-center justify-center bg-surface border-l border-line/60 z-20 shadow-2xl relative transition-all duration-300">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
       </div>
     );
   }
 
   return (
-    <div className="w-[35%] flex flex-col bg-slate-900 border-l border-slate-800/60 z-20 shadow-2xl relative transition-all duration-300">
+    <div className="w-[35%] flex flex-col bg-surface border-l border-line/60 z-20 shadow-2xl relative transition-all duration-300">
       <style>{`
         .collaboration-cursor__caret {
           border-left: 2px solid #fff;
@@ -93,26 +93,26 @@ export default function SharedNotes({ chatId, onClose }: { chatId: string, onClo
       `}</style>
       
       {/* Header */}
-      <div className="h-[73px] p-4 border-b border-slate-800/60 flex items-center justify-between bg-slate-900/50 backdrop-blur-sm">
+      <div className="h-[73px] p-4 border-b border-line/60 flex items-center justify-between bg-surface/50 backdrop-blur-sm">
         <div className="flex items-center gap-3 text-indigo-400 font-semibold">
           <div className="p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
             <FileText className="w-5 h-5" />
           </div>
           <div className="flex flex-col">
-            <span className="text-slate-100">Shared Canvas</span>
+            <span className="text-ink">Shared Canvas</span>
             <span className="text-[10px] text-indigo-400 flex items-center gap-1 font-normal tracking-wide">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
               E2EE Active
             </span>
           </div>
         </div>
-        <button onClick={onClose} className="p-2 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-all">
+        <button onClick={onClose} className="p-2 text-muted hover:bg-raised hover:text-white rounded-xl transition-all">
           <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Editor Canvas */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-950/30">
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-canvas/30">
         <EditorContent editor={editor} className="min-h-full" />
       </div>
     </div>

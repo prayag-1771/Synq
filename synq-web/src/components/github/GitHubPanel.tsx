@@ -148,17 +148,17 @@ export default function GitHubPanel({ chatId, onClose }: Props) {
             onClick={() => setShowRepoMenu(!showRepoMenu)}
             className="flex items-center gap-1.5 max-w-full group"
           >
-            <span className="font-mono text-xs text-slate-200 truncate group-hover:text-white transition-colors">
+            <span className="font-mono text-xs text-ink truncate group-hover:text-white transition-colors">
               {activeRepo!.fullName}
             </span>
-            <ChevronDown className="w-3 h-3 text-slate-500 shrink-0" />
+            <ChevronDown className="w-3 h-3 text-subtle shrink-0" />
             {activeRepo!.webhookActive && (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Live activity enabled" />
             )}
           </button>
 
           {showRepoMenu && (
-            <div className="absolute top-full left-0 mt-1.5 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-1 z-30">
+            <div className="absolute top-full left-0 mt-1.5 w-64 bg-surface border border-line rounded-xl shadow-2xl p-1 z-30">
               {repos.map((r) => (
                 <div key={r.repositoryId} className="flex items-center group">
                   <button
@@ -169,11 +169,11 @@ export default function GitHubPanel({ chatId, onClose }: Props) {
                     className={`flex-1 text-left px-3 py-2 rounded-lg text-[11px] font-mono truncate transition-colors ${
                       r.repositoryId === activeRepo!.repositoryId
                         ? 'bg-indigo-600/20 text-indigo-300'
-                        : 'text-slate-300 hover:bg-slate-800'
+                        : 'text-ink/85 hover:bg-raised'
                     }`}
                   >
                     {r.fullName}
-                    {r.isPrimary && <span className="ml-1.5 text-[9px] text-slate-500">primary</span>}
+                    {r.isPrimary && <span className="ml-1.5 text-[9px] text-subtle">primary</span>}
                   </button>
                   <button
                     onClick={async () => {
@@ -183,14 +183,14 @@ export default function GitHubPanel({ chatId, onClose }: Props) {
                       flash(`Unlinked ${r.fullName}`);
                     }}
                     title="Unlink from this chat"
-                    className="p-1.5 mr-1 rounded-md text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all"
+                    className="p-1.5 mr-1 rounded-md text-faint hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all"
                   >
                     <Unlink className="w-3 h-3" />
                   </button>
                 </div>
               ))}
 
-              <div className="border-t border-slate-800 mt-1 pt-1 space-y-0.5">
+              <div className="border-t border-line mt-1 pt-1 space-y-0.5">
                 {repos.length > 1 && activeRepo && !activeRepo.isPrimary && (
                   <button
                     onClick={async () => {
@@ -199,7 +199,7 @@ export default function GitHubPanel({ chatId, onClose }: Props) {
                       setShowRepoMenu(false);
                       flash(`${activeRepo.fullName} is now the default for #references`);
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] text-muted hover:bg-raised hover:text-ink transition-colors"
                   >
                     <Star className="w-3 h-3" />
                     Make default for #refs
@@ -210,7 +210,7 @@ export default function GitHubPanel({ chatId, onClose }: Props) {
                     setShowRepoMenu(false);
                     openLinkRepoModal(true);
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] text-muted hover:bg-raised hover:text-ink transition-colors"
                 >
                   <Plus className="w-3 h-3" />
                   Link another repository
@@ -222,7 +222,7 @@ export default function GitHubPanel({ chatId, onClose }: Props) {
       }
     >
       {/* Tabs */}
-      <div className="flex items-center border-b border-slate-800/60 px-2 shrink-0">
+      <div className="flex items-center border-b border-line/60 px-2 shrink-0">
         {(
           [
             ['pulls', GitPullRequest, 'Pulls'],
@@ -236,7 +236,7 @@ export default function GitHubPanel({ chatId, onClose }: Props) {
             key={key}
             onClick={() => setTab(key)}
             className={`flex items-center gap-1.5 px-2.5 py-2.5 text-[11px] font-medium border-b-2 transition-colors ${
-              tab === key ? 'border-indigo-500 text-indigo-300' : 'border-transparent text-slate-500 hover:text-slate-300'
+              tab === key ? 'border-indigo-500 text-indigo-300' : 'border-transparent text-subtle hover:text-ink/85'
             }`}
           >
             <Icon className="w-3.5 h-3.5" />
@@ -299,7 +299,7 @@ export default function GitHubPanel({ chatId, onClose }: Props) {
       </div>
 
       {toast && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-[11px] text-slate-200 shadow-2xl whitespace-nowrap animate-in fade-in slide-in-from-bottom-2">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg bg-raised border border-line-strong text-[11px] text-ink shadow-2xl whitespace-nowrap animate-in fade-in slide-in-from-bottom-2">
           {toast}
         </div>
       )}
@@ -320,13 +320,13 @@ const PanelShell = ({
   children: React.ReactNode;
   onClose: () => void;
 }) => (
-  <div className="w-[38%] min-w-[380px] flex flex-col bg-slate-900 border-l border-slate-800/60 z-20 shadow-2xl relative">
-    <div className="h-[57px] flex items-center gap-2.5 px-4 border-b border-slate-800/60 shrink-0">
-      <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700/60 flex items-center justify-center text-slate-300 shrink-0">
+  <div className="w-[38%] min-w-[380px] flex flex-col bg-surface border-l border-line/60 z-20 shadow-2xl relative">
+    <div className="h-[57px] flex items-center gap-2.5 px-4 border-b border-line/60 shrink-0">
+      <div className="w-7 h-7 rounded-lg bg-raised border border-line-strong/60 flex items-center justify-center text-ink/85 shrink-0">
         <GitHubMark className="w-3.5 h-3.5" />
       </div>
-      {typeof title === 'string' ? <span className="text-sm font-semibold text-slate-100 flex-1">{title}</span> : title}
-      <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0">
+      {typeof title === 'string' ? <span className="text-sm font-semibold text-ink flex-1">{title}</span> : title}
+      <button onClick={onClose} className="p-1.5 rounded-lg text-muted hover:text-ink hover:bg-raised transition-colors shrink-0">
         <X className="w-4 h-4" />
       </button>
     </div>
@@ -346,9 +346,9 @@ const EmptyState = ({
   action?: React.ReactNode;
 }) => (
   <div className="flex-1 flex flex-col items-center justify-center text-center p-8 gap-3">
-    <div className="text-slate-700">{icon}</div>
-    <h3 className="text-sm font-semibold text-slate-200">{title}</h3>
-    <p className="text-xs text-slate-500 max-w-[280px] leading-relaxed">{body}</p>
+    <div className="text-faint">{icon}</div>
+    <h3 className="text-sm font-semibold text-ink">{title}</h3>
+    <p className="text-xs text-subtle max-w-[280px] leading-relaxed">{body}</p>
     {action && <div className="mt-1">{action}</div>}
   </div>
 );
@@ -438,7 +438,7 @@ const PullsTab = ({
       {error && <ErrorNote message={error} />}
 
       {data && data.length === 0 && !loading && (
-        <p className="text-center text-xs text-slate-600 py-10">No {state === 'open' ? 'open ' : ''}pull requests.</p>
+        <p className="text-center text-xs text-faint py-10">No {state === 'open' ? 'open ' : ''}pull requests.</p>
       )}
 
       <div className="p-2 space-y-1">
@@ -457,7 +457,7 @@ const PullsTab = ({
               : pull.state === 'closed'
               ? 'text-rose-400'
               : pull.draft
-              ? 'text-slate-500'
+              ? 'text-subtle'
               : 'text-emerald-400';
 
           return (
@@ -598,18 +598,18 @@ const IssuesTab = ({
             <input
               value={draft.title}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-medium text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              className="w-full px-2.5 py-1.5 bg-canvas border border-line rounded-lg text-xs font-medium text-ink focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
             />
             <textarea
               value={draft.body}
               onChange={(e) => setDraft({ ...draft, body: e.target.value })}
               rows={7}
-              className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-[11px] font-mono text-slate-300 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              className="w-full px-2.5 py-1.5 bg-canvas border border-line rounded-lg text-[11px] font-mono text-ink/85 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
             />
             {draft.labels.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {draft.labels.map((label) => (
-                  <span key={label} className="px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[9px]">
+                  <span key={label} className="px-1.5 py-0.5 rounded-full bg-raised text-muted text-[9px]">
                     {label}
                   </span>
                 ))}
@@ -631,7 +631,7 @@ const IssuesTab = ({
       {error && <ErrorNote message={error} />}
 
       {data && data.length === 0 && !loading && (
-        <p className="text-center text-xs text-slate-600 py-10">No {state === 'open' ? 'open ' : ''}issues.</p>
+        <p className="text-center text-xs text-faint py-10">No {state === 'open' ? 'open ' : ''}issues.</p>
       )}
 
       <div className="p-2 space-y-1">
@@ -716,9 +716,9 @@ const CodeTab = ({
 
   return (
     <div>
-      <div className="p-2 border-b border-slate-800/60 space-y-2">
+      <div className="p-2 border-b border-line/60 space-y-2">
         <form onSubmit={runSearch} className="relative flex items-center">
-          <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-500" />
+          <Search className="absolute left-2.5 w-3.5 h-3.5 text-subtle" />
           <input
             value={query}
             onChange={(e) => {
@@ -726,7 +726,7 @@ const CodeTab = ({
               if (!e.target.value) setSearchResults(null);
             }}
             placeholder="Search code in this repository…"
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+            className="w-full pl-8 pr-3 py-1.5 bg-canvas border border-line rounded-lg text-[11px] text-ink placeholder-faint focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
           />
           {searching && <Loader2 className="absolute right-2.5 w-3.5 h-3.5 animate-spin text-indigo-400" />}
         </form>
@@ -737,16 +737,16 @@ const CodeTab = ({
               setPath('');
               setShowCommits(false);
             }}
-            className="text-slate-400 hover:text-indigo-300 transition-colors"
+            className="text-muted hover:text-indigo-300 transition-colors"
           >
             {repo}
           </button>
           {segments.map((segment, i) => (
             <React.Fragment key={i}>
-              <ChevronRight className="w-2.5 h-2.5 text-slate-700" />
+              <ChevronRight className="w-2.5 h-2.5 text-faint" />
               <button
                 onClick={() => setPath(segments.slice(0, i + 1).join('/'))}
-                className="text-slate-400 hover:text-indigo-300 transition-colors truncate"
+                className="text-muted hover:text-indigo-300 transition-colors truncate"
               >
                 {segment}
               </button>
@@ -756,7 +756,7 @@ const CodeTab = ({
           <button
             onClick={() => setShowCommits(!showCommits)}
             className={`ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors ${
-              showCommits ? 'text-indigo-300 bg-indigo-500/10' : 'text-slate-500 hover:text-slate-300'
+              showCommits ? 'text-indigo-300 bg-indigo-500/10' : 'text-subtle hover:text-ink/85'
             }`}
           >
             <GitCommit className="w-3 h-3" />
@@ -772,14 +772,14 @@ const CodeTab = ({
             <button
               key={commit.sha}
               onClick={() => onOpenCommit(commit.sha)}
-              className="w-full text-left p-2.5 rounded-lg border border-transparent hover:border-slate-800 hover:bg-slate-800/40 transition-colors group"
+              className="w-full text-left p-2.5 rounded-lg border border-transparent hover:border-line hover:bg-raised/40 transition-colors group"
             >
               <div className="flex items-start gap-2">
-                <GitCommit className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                <GitCommit className="w-3.5 h-3.5 text-subtle shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] text-slate-200 truncate group-hover:text-white">{commit.message}</div>
-                  <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500">
-                    <span className="font-mono px-1 rounded bg-slate-800">{commit.sha.slice(0, 7)}</span>
+                  <div className="text-[11px] text-ink truncate group-hover:text-white">{commit.message}</div>
+                  <div className="flex items-center gap-2 mt-1 text-[10px] text-subtle">
+                    <span className="font-mono px-1 rounded bg-raised">{commit.sha.slice(0, 7)}</span>
                     <span>{commit.author?.login}</span>
                     <span>{new Date(commit.date).toLocaleDateString()}</span>
                   </div>
@@ -791,7 +791,7 @@ const CodeTab = ({
       ) : searchResults ? (
         <div className="p-2 space-y-1">
           {searchResults.length === 0 ? (
-            <p className="text-center text-xs text-slate-600 py-10">No matches.</p>
+            <p className="text-center text-xs text-faint py-10">No matches.</p>
           ) : (
             searchResults.map((result: any) => (
               <FileRow key={result.path} name={result.path} onOpen={() => onOpenFile(result.path)} onShare={() => onShare(result.path)} />
@@ -806,7 +806,7 @@ const CodeTab = ({
           {path && (
             <button
               onClick={() => setPath(segments.slice(0, -1).join('/'))}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] text-slate-500 hover:text-slate-300 hover:bg-slate-800/40 transition-colors"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] text-subtle hover:text-ink/85 hover:bg-raised/40 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               ..
@@ -818,7 +818,7 @@ const CodeTab = ({
               <button
                 key={entry.path}
                 onClick={() => setPath(entry.path)}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] text-slate-300 hover:bg-slate-800/40 transition-colors"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] text-ink/85 hover:bg-raised/40 transition-colors"
               >
                 <FolderClosed className="w-3.5 h-3.5 text-indigo-400/70 shrink-0" />
                 <span className="truncate font-mono">{entry.name}</span>
@@ -839,15 +839,15 @@ const CodeTab = ({
 };
 
 const FileRow = ({ name, onOpen, onShare }: { name: string; onOpen: () => void; onShare: () => void }) => (
-  <div className="flex items-center group rounded-lg hover:bg-slate-800/40 transition-colors">
-    <button onClick={onOpen} className="flex-1 flex items-center gap-2 px-2.5 py-1.5 text-[11px] text-slate-300 min-w-0">
-      <FileCode className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+  <div className="flex items-center group rounded-lg hover:bg-raised/40 transition-colors">
+    <button onClick={onOpen} className="flex-1 flex items-center gap-2 px-2.5 py-1.5 text-[11px] text-ink/85 min-w-0">
+      <FileCode className="w-3.5 h-3.5 text-subtle shrink-0" />
       <span className="truncate font-mono text-left">{name}</span>
     </button>
     <button
       onClick={onShare}
       title="Reference this file in your message"
-      className="p-1.5 mr-1 rounded-md text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+      className="p-1.5 mr-1 rounded-md text-faint hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"
     >
       <Share2 className="w-3 h-3" />
     </button>
@@ -894,8 +894,8 @@ const ActivityTab = ({
     closed: 'text-rose-400',
     success: 'text-emerald-400',
     failure: 'text-rose-400',
-    draft: 'text-slate-500',
-    neutral: 'text-slate-400',
+    draft: 'text-subtle',
+    neutral: 'text-muted',
   };
 
   if (loading) return <Loading />;
@@ -922,26 +922,26 @@ const ActivityTab = ({
           href={event.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block p-2.5 rounded-lg border border-transparent hover:border-slate-800 hover:bg-slate-800/40 transition-colors"
+          className="block p-2.5 rounded-lg border border-transparent hover:border-line hover:bg-raised/40 transition-colors"
         >
           <div className="flex items-start gap-2.5">
             {event.actorAvatar ? (
-              <img src={event.actorAvatar} alt="" className="w-5 h-5 rounded-full bg-slate-800 shrink-0 mt-0.5" />
+              <img src={event.actorAvatar} alt="" className="w-5 h-5 rounded-full bg-raised shrink-0 mt-0.5" />
             ) : (
-              <div className="w-5 h-5 rounded-full bg-slate-800 shrink-0 mt-0.5" />
+              <div className="w-5 h-5 rounded-full bg-raised shrink-0 mt-0.5" />
             )}
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] text-slate-300 leading-snug">
-                <span className="font-medium text-slate-200">{event.actorLogin || 'someone'}</span>{' '}
-                <span className={toneColor[event.tone] || 'text-slate-400'}>{event.summary}</span>
+              <div className="text-[11px] text-ink/85 leading-snug">
+                <span className="font-medium text-ink">{event.actorLogin || 'someone'}</span>{' '}
+                <span className={toneColor[event.tone] || 'text-muted'}>{event.summary}</span>
               </div>
-              {event.title && <div className="text-[11px] text-slate-500 truncate mt-0.5">{event.title}</div>}
-              <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-600">
+              {event.title && <div className="text-[11px] text-subtle truncate mt-0.5">{event.title}</div>}
+              <div className="flex items-center gap-2 mt-1 text-[10px] text-faint">
                 <span className="font-mono">{event.repoFullName}</span>
                 <span>{new Date(event.createdAt).toLocaleString()}</span>
               </div>
             </div>
-            <ExternalLink className="w-3 h-3 text-slate-700 shrink-0 mt-1" />
+            <ExternalLink className="w-3 h-3 text-faint shrink-0 mt-1" />
           </div>
         </a>
       ))}
@@ -990,7 +990,7 @@ const AskTab = ({ owner, repo, onShare }: { owner: string; repo: string; onShare
           }}
           rows={3}
           placeholder="Ask about this codebase — “where do we verify the webhook signature?”, “what happens when Redis is down?”"
-          className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-600 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+          className="w-full px-3 py-2 bg-canvas border border-line rounded-xl text-xs text-ink placeholder-faint resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
         />
         <button
           type="submit"
@@ -1022,8 +1022,8 @@ const AskTab = ({ owner, repo, onShare }: { owner: string; repo: string; onShare
             <Markdownish text={answer.answer} />
 
             {answer.sources.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-slate-800/60">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+              <div className="mt-3 pt-3 border-t border-line/60">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-subtle mb-1.5">
                   Read from
                 </div>
                 <div className="space-y-0.5">
@@ -1045,7 +1045,7 @@ const AskTab = ({ owner, repo, onShare }: { owner: string; repo: string; onShare
       )}
 
       {!answer && !busy && !error && (
-        <p className="text-[11px] text-slate-600 leading-relaxed pt-2">
+        <p className="text-[11px] text-faint leading-relaxed pt-2">
           Answers are grounded in the repository&apos;s real files — the model searches the code, reads what it finds, and
           cites the paths it used.
         </p>
@@ -1071,13 +1071,13 @@ const FilterBar = ({
   onReload: () => void;
   extra?: React.ReactNode;
 }) => (
-  <div className="flex items-center gap-1.5 p-2 border-b border-slate-800/60">
+  <div className="flex items-center gap-1.5 p-2 border-b border-line/60">
     {options.map(([key, label]) => (
       <button
         key={key}
         onClick={() => onChange(key)}
         className={`px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
-          value === key ? 'bg-slate-800 text-slate-200' : 'text-slate-500 hover:text-slate-300'
+          value === key ? 'bg-raised text-ink' : 'text-subtle hover:text-ink/85'
         }`}
       >
         {label}
@@ -1086,7 +1086,7 @@ const FilterBar = ({
     {extra}
     <button
       onClick={onReload}
-      className="ml-auto p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+      className="ml-auto p-1.5 rounded-lg text-subtle hover:text-ink/85 hover:bg-raised transition-colors"
       title="Refresh"
     >
       <RefreshCw className="w-3 h-3" />
@@ -1111,15 +1111,15 @@ const ListRow = ({
   onShare: () => void;
   href: string;
 }) => (
-  <div className="group rounded-lg border border-transparent hover:border-slate-800 hover:bg-slate-800/30 transition-colors">
+  <div className="group rounded-lg border border-transparent hover:border-line hover:bg-raised/30 transition-colors">
     <div className="flex items-start gap-2.5 p-2.5">
       <div className="shrink-0 mt-0.5">{icon}</div>
 
       <button onClick={onOpen} className="flex-1 min-w-0 text-left">
-        <div className="text-[11px] font-medium text-slate-200 group-hover:text-white leading-snug line-clamp-2">
+        <div className="text-[11px] font-medium text-ink group-hover:text-white leading-snug line-clamp-2">
           {title}
         </div>
-        <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 truncate">{meta}</div>
+        <div className="flex items-center gap-2 mt-1 text-[10px] text-subtle truncate">{meta}</div>
 
         {labels && labels.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
@@ -1140,7 +1140,7 @@ const ListRow = ({
         <button
           onClick={onShare}
           title="Reference in your message"
-          className="p-1 rounded-md text-slate-600 hover:text-indigo-400 transition-colors"
+          className="p-1 rounded-md text-faint hover:text-indigo-400 transition-colors"
         >
           <Share2 className="w-3 h-3" />
         </button>
@@ -1148,7 +1148,7 @@ const ListRow = ({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-1 rounded-md text-slate-600 hover:text-slate-300 transition-colors"
+          className="p-1 rounded-md text-faint hover:text-ink/85 transition-colors"
         >
           <ExternalLink className="w-3 h-3" />
         </a>

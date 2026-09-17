@@ -16,6 +16,7 @@ import CallModal from '../components/CallModal';
 import SharedNotes from '../components/SharedNotes';
 import AIAssistant from '../components/AIAssistant';
 import MessageBody from '../components/MessageBody';
+import SynqMark from '../components/SynqMark';
 import GitHubPanel from '../components/github/GitHubPanel';
 import ConnectGitHubModal from '../components/github/ConnectGitHubModal';
 import LinkRepoModal from '../components/github/LinkRepoModal';
@@ -56,7 +57,8 @@ import {
   CheckCheck,
   Copy,
   Zap,
-  ChevronDown
+  ChevronDown,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function ChatPage() {
@@ -142,6 +144,7 @@ export default function ChatPage() {
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [missedWhileScrolledUp, setMissedWhileScrolledUp] = useState(0);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -178,6 +181,31 @@ export default function ChatPage() {
   }, [isAuthenticated, token]);
 
   const activeTypingCount = selectedChatId ? (typingUsers[selectedChatId] || []).length : 0;
+
+  // Keyboard shortcuts. "/" jumps to people search, Escape leaves the field —
+  // both advertised in the UI, so both have to be real.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+      if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key === 'Escape' && target === searchInputRef.current) {
+        searchInputRef.current?.blur();
+        setShowSearchResults(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   // 4. Autoscroll — only when the reader is already at the bottom, or the new
   // message is their own. Scrolling someone away from history they are reading
@@ -860,14 +888,19 @@ export default function ChatPage() {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-100">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      <div className="min-h-screen app-canvas flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 fade">
+          <SynqMark variant="badge" className="w-10 h-10" />
+          <div className="h-0.5 w-24 rounded-full bg-line overflow-hidden">
+            <div className="h-full w-1/3 rounded-full bg-accent animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">
+    <div className="flex h-screen app-canvas text-ink overflow-hidden">
       <PinModal />
       <CallModal />
 
@@ -880,33 +913,33 @@ export default function ChatPage() {
       
       {/* Semantic Search Modal */}
       {showSemanticModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col h-[80vh] animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 p-4 border-b border-slate-800/60">
-              <BrainCircuit className="w-5 h-5 text-indigo-400" />
-              <h2 className="text-lg font-semibold text-slate-100">AI Memory Search</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-canvas/85 backdrop-blur-sm">
+          <div className="bg-surface border border-line-strong rounded-2xl w-full max-w-2xl shadow-2xl shadow-black/60 flex flex-col h-[80vh] rise">
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-line">
+              <BrainCircuit className="w-4 h-4 text-accent-bright" />
+              <h2 className="text-[14px] font-semibold text-ink">AI Memory Search</h2>
               <button 
                 onClick={() => { setShowSemanticModal(false); setSemanticResults([]); setSemanticQuery(''); }}
-                className="ml-auto p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-colors"
+                className="ml-auto p-1.5 text-subtle hover:text-ink hover:bg-hover rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             
-            <form onSubmit={handleSemanticSearch} className="p-4 border-b border-slate-800/60 bg-slate-900/50">
+            <form onSubmit={handleSemanticSearch} className="p-3 border-b border-line">
               <div className="relative flex items-center">
-                <Search className="absolute left-4 w-5 h-5 text-slate-500" />
+                <Search className="absolute left-3.5 w-4 h-4 text-faint" />
                 <input
                   type="text"
                   value={semanticQuery}
                   onChange={(e) => setSemanticQuery(e.target.value)}
                   placeholder="Ask your memory... e.g., 'What was the password for the database?'"
-                  className="w-full pl-12 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-200 placeholder-slate-500"
+                  className="w-full h-11 pl-10 pr-24 bg-raised border border-line rounded-xl focus:outline-none focus:border-accent/50 text-[13.5px] text-ink placeholder-faint transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={isSearchingSemantic || !semanticQuery.trim()}
-                  className="absolute right-2 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+                  className="absolute right-2 px-3 py-1.5 bg-accent hover:bg-accent-bright disabled:bg-raised disabled:text-faint text-white rounded-lg text-[12px] font-medium transition-colors"
                 >
                   {isSearchingSemantic ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
                 </button>
@@ -915,7 +948,7 @@ export default function ChatPage() {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {semanticResults.length === 0 && !isSearchingSemantic && (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                <div className="h-full flex flex-col items-center justify-center text-subtle">
                   <BrainCircuit className="w-12 h-12 mb-3 opacity-20" />
                   <p>Search by meaning, not just keywords.</p>
                 </div>
@@ -928,23 +961,23 @@ export default function ChatPage() {
                     handleStartChat(result.chatId === user?.id ? result.senderId : result.chatId);
                     setShowSemanticModal(false);
                   }}
-                  className="p-4 rounded-xl border border-slate-800/60 bg-slate-900/40 hover:bg-slate-800/60 cursor-pointer transition-colors group relative"
+                  className="p-3 rounded-xl border border-line bg-raised hover:bg-hover hover:border-line-strong cursor-pointer transition-colors group relative"
                 >
                   <div className="flex items-start gap-3">
                     <img src={result.senderAvatar} alt="" className="w-8 h-8 rounded-lg" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-sm text-slate-200">{result.senderName}</span>
+                        <span className="font-medium text-[13px] text-ink">{result.senderName}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-soft text-accent-ink border border-accent/25 tnum">
                             {Math.round(result.confidence * 100)}% match
                           </span>
-                          <span className="text-xs text-slate-500">
+                          <span className="text-[11px] text-subtle tnum">
                             {new Date(result.createdAt).toLocaleDateString()}
                           </span>
                         </div>
                       </div>
-                      <p className="text-sm text-slate-300 line-clamp-3">{result.content}</p>
+                      <p className="text-[12.5px] text-muted line-clamp-3 mt-1">{result.content}</p>
                     </div>
                   </div>
                 </div>
@@ -954,70 +987,32 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Background radial effects */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/20 via-slate-950 to-slate-950 pointer-events-none" />
-
       {/* 1. Left Sidebar */}
-      <div className="w-80 border-r border-slate-800/60 bg-slate-900/20 backdrop-blur-md flex flex-col z-10 relative">
-        {/* User Profile Header */}
-        <div className="p-4 border-b border-slate-800/60 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img
-              src={user.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.username}`}
-              alt="avatar"
-              className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/50 object-cover"
+      <aside className="w-[290px] shrink-0 border-r border-line bg-surface flex flex-col z-10 relative">
+        {/* Workspace identity */}
+        <div className="h-14 px-4 flex items-center gap-2.5 border-b border-line">
+          <SynqMark variant="badge" className="w-6 h-6" />
+          <span className="text-[15px] font-semibold tracking-tight text-ink">Synq</span>
+          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-subtle" title={`Realtime connection: ${connectionState}`}>
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                connectionState === 'online'
+                  ? 'bg-positive'
+                  : connectionState === 'connecting'
+                  ? 'bg-caution animate-pulse'
+                  : 'bg-faint'
+              }`}
             />
-            <div className="flex flex-col">
-              <span className="font-semibold text-sm leading-tight text-white">
-                {user.username}
-              </span>
-              <span
-                className={`text-xs flex items-center gap-1.5 mt-0.5 ${
-                  connectionState === 'online'
-                    ? 'text-emerald-400'
-                    : connectionState === 'connecting'
-                    ? 'text-amber-400'
-                    : 'text-slate-500'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    connectionState === 'online'
-                      ? 'bg-emerald-500'
-                      : connectionState === 'connecting'
-                      ? 'bg-amber-500 animate-pulse'
-                      : 'bg-slate-600'
-                  }`}
-                />
-                {connectionState === 'online' ? 'Connected' : connectionState === 'connecting' ? 'Connecting…' : 'Offline'}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSemanticModal(true)}
-              className="p-2 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 transition-all duration-200"
-              title="Memory Search"
-            >
-              <BrainCircuit className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleLogout}
-              className="p-2 rounded-lg bg-slate-800/40 hover:bg-red-500/10 hover:text-red-400 border border-slate-800 hover:border-red-500/20 transition-all duration-200"
-              title="Log Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
+            {connectionState === 'online' ? 'Live' : connectionState === 'connecting' ? 'Syncing' : 'Offline'}
+          </span>
         </div>
 
         {/* Search / Directory */}
-        <div className="p-3 relative">
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-              <Search className="w-4 h-4" />
-            </span>
+        <div className="px-3 pt-3 pb-2 relative">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-faint group-focus-within:text-accent-bright transition-colors" />
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => {
@@ -1025,36 +1020,35 @@ export default function ChatPage() {
                 setShowSearchResults(e.target.value.length > 0);
               }}
               onFocus={() => setShowSearchResults(searchQuery.length > 0)}
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-800 bg-slate-950/60 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all"
-              placeholder="Search people to chat..."
+              className="w-full h-9 pl-9 pr-12 rounded-lg border border-line bg-raised text-[13px] text-ink placeholder-faint focus:outline-none focus:border-accent/50 focus:bg-hover transition-colors"
+              placeholder="Find people…"
             />
+            <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 h-5 flex items-center rounded border border-line bg-surface text-[10px] font-mono text-faint pointer-events-none">
+              /
+            </kbd>
           </div>
 
           {/* Search Dropdown Panel */}
           {showSearchResults && (
-            <div className="absolute top-full left-3 right-3 mt-1 bg-slate-900 border border-slate-800 rounded-lg shadow-xl max-h-60 overflow-y-auto z-25 divide-y divide-slate-800/50">
+            <div className="absolute top-full left-3 right-3 mt-1.5 bg-raised border border-line-strong rounded-xl shadow-2xl shadow-black/60 max-h-64 overflow-y-auto z-30 p-1 custom-scrollbar rise">
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((u) => (
                   <button
                     key={u.id}
                     onClick={() => handleStartChat(u.id)}
-                    className="w-full p-3 flex items-center gap-3 hover:bg-slate-800/40 transition-colors text-left"
+                    className="w-full p-2 flex items-center gap-2.5 rounded-lg hover:bg-hover transition-colors text-left"
                   >
-                    <img
-                      src={u.avatar}
-                      alt={u.username}
-                      className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/50"
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-white">{u.username}</span>
-                      <span className="text-xs text-slate-500">{u.email}</span>
+                    <img src={u.avatar} alt="" className="w-7 h-7 rounded-md bg-surface shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[13px] font-medium text-ink truncate">{u.username}</span>
+                      <span className="text-[11px] text-subtle truncate">{u.email}</span>
                     </div>
                   </button>
                 ))
               ) : (
-                <div className="p-4 text-center text-xs text-slate-500 flex items-center justify-center gap-1.5">
-                  <AlertCircle className="w-4 h-4 text-slate-600" />
-                  No matching users found
+                <div className="px-3 py-5 text-center text-xs text-subtle flex flex-col items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-faint" />
+                  No one matches “{searchQuery}”
                 </div>
               )}
             </div>
@@ -1062,13 +1056,24 @@ export default function ChatPage() {
         </div>
 
         {/* Chats History List */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-1">
-          <div className="px-2 py-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-            Direct Messages
+        <div className="flex-1 overflow-y-auto px-2 pb-2 custom-scrollbar">
+          <div className="flex items-center gap-2 px-2 pt-1 pb-1.5">
+            <span className="text-[10px] font-semibold tracking-[0.08em] text-faint uppercase">
+              Conversations
+            </span>
+            <span className="text-[10px] text-faint tnum">{chats.length > 0 ? chats.length : ''}</span>
           </div>
           {loadingChats ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="w-5 h-5 animate-spin text-slate-600" />
+            <div className="space-y-1 pt-1" aria-label="Loading conversations">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-2.5 px-3 py-2">
+                  <div className="w-8 h-8 rounded-lg bg-raised animate-pulse" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-2.5 rounded bg-raised animate-pulse" style={{ width: 55 + i * 8 + '%' }} />
+                    <div className="h-2 rounded bg-raised/60 animate-pulse" style={{ width: 75 - i * 6 + '%' }} />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : chats.length > 0 ? (
             chats.map((chat) => {
@@ -1084,47 +1089,60 @@ export default function ChatPage() {
                   key={chat.id}
                   onClick={() => setSelectedChatId(chat.id)}
                   aria-current={isSelected ? 'true' : undefined}
-                  className={`w-full p-3 flex items-center gap-3 rounded-xl border text-left transition-all duration-200 ${
-                    isSelected
-                      ? 'bg-indigo-600/10 border-indigo-500/30 text-white'
-                      : 'bg-transparent border-transparent hover:bg-slate-900/60 text-slate-400 hover:text-slate-200'
+                  className={`group relative w-full pl-3 pr-2.5 py-2 flex items-center gap-2.5 rounded-lg text-left transition-colors ${
+                    isSelected ? 'bg-active' : 'hover:bg-hover'
                   }`}
                 >
+                  {/* Selection reads as a rail, not a filled box — quieter at rest. */}
+                  <span
+                    className={`absolute left-0 top-1/2 -translate-y-1/2 w-0.5 rounded-r-full bg-accent-bright transition-all ${
+                      isSelected ? 'h-6 opacity-100' : 'h-0 opacity-0'
+                    }`}
+                  />
+
                   <div className="relative shrink-0">
                     <img
                       src={chat.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${chat.name}`}
                       alt=""
-                      className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-850"
+                      className="w-8 h-8 rounded-lg bg-raised"
                     />
                     {/* Only drawn once the server has told us who is actually connected. */}
                     {online && (
                       <span
-                        className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-slate-950"
+                        className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-positive ring-2 ring-surface"
                         title={`${chat.name} is online`}
                       />
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2">
+                    <div className="flex items-baseline gap-2">
                       <span
-                        className={`text-sm truncate ${
-                          unread > 0 ? 'font-bold text-white' : 'font-semibold text-slate-200'
+                        className={`text-[13px] truncate ${
+                          unread > 0
+                            ? 'font-semibold text-ink'
+                            : isSelected
+                            ? 'font-medium text-ink'
+                            : 'font-medium text-muted'
                         }`}
                       >
                         {chat.name}
                       </span>
-                      <span className={`text-[10px] shrink-0 ${unread > 0 ? 'text-indigo-400' : 'text-slate-500'}`}>
+                      <span
+                        className={`ml-auto shrink-0 text-[10px] tnum ${
+                          unread > 0 ? 'text-accent-bright' : 'text-faint'
+                        }`}
+                      >
                         {formatListTimestamp(stampSource)}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 mt-0.5">
-                      <p className="text-xs truncate min-w-0">
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[11.5px] truncate min-w-0 leading-snug">
                         {hasTyping ? (
-                          <span className="text-indigo-400 font-medium">typing…</span>
+                          <span className="text-accent-bright">typing…</span>
                         ) : (
-                          <span className={unread > 0 ? 'text-slate-300' : 'text-slate-500'}>
+                          <span className={unread > 0 ? 'text-muted' : 'text-subtle'}>
                             {formatPreview(summary?.lastMessage ?? null, user.id)}
                           </span>
                         )}
@@ -1132,7 +1150,7 @@ export default function ChatPage() {
 
                       {unread > 0 && (
                         <span
-                          className="shrink-0 min-w-[18px] h-[18px] px-1.5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center"
+                          className="ml-auto shrink-0 min-w-[17px] h-[17px] px-1 rounded-full bg-accent text-white text-[10px] font-semibold tnum flex items-center justify-center"
                           aria-label={`${unread} unread messages`}
                         >
                           {unread > 99 ? '99+' : unread}
@@ -1144,122 +1162,135 @@ export default function ChatPage() {
               );
             })
           ) : (
-            <div className="text-center py-10 text-xs text-slate-600 px-4">
-              No conversations yet. Search for a user above to start chatting!
+            <div className="px-3 py-8 text-center">
+              <p className="text-[13px] font-medium text-muted">No conversations yet</p>
+              <p className="text-[11.5px] text-subtle mt-1 leading-relaxed">
+                Search for a teammate above to start one.
+              </p>
             </div>
           )}
         </div>
-      </div>
+
+        {/* Account + workspace actions */}
+        <div className="border-t border-line p-2 flex items-center gap-2">
+          <img
+            src={user.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.username}`}
+            alt=""
+            className="w-7 h-7 rounded-md bg-raised shrink-0"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="text-[12.5px] font-medium text-ink truncate leading-tight">{user.username}</div>
+            <div className="text-[10.5px] text-subtle truncate leading-tight">{user.email}</div>
+          </div>
+          <button
+            onClick={() => setShowSemanticModal(true)}
+            aria-label="Search your message history by meaning"
+            title="Memory search"
+            className="p-1.5 rounded-md text-subtle hover:text-accent-bright hover:bg-hover transition-colors"
+          >
+            <BrainCircuit className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleLogout}
+            aria-label="Sign out"
+            title="Sign out"
+            className="p-1.5 rounded-md text-subtle hover:text-critical hover:bg-hover transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </aside>
 
       {/* 2. Main Chat Area */}
-      <div className="flex-1 flex flex-col z-10 bg-slate-950/80 relative">
+      <div className="flex-1 flex flex-col z-10 relative min-w-0">
         {selectedChatId && selectedChat ? (
           <>
             {/* Chat Pane Header */}
-            <div className="h-[73px] border-b border-slate-800/60 bg-slate-900/20 backdrop-blur-md px-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <header className="h-14 shrink-0 border-b border-line bg-surface/80 backdrop-blur-xl px-4 flex items-center gap-3">
+              <div className="relative shrink-0">
                 <img
                   src={selectedChat.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${selectedChat.name}`}
-                  alt={selectedChat.name}
-                  className="w-10 h-10 rounded-xl bg-slate-850 border border-slate-800/50"
+                  alt=""
+                  className="w-8 h-8 rounded-lg bg-raised"
                 />
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-white leading-tight">
-                    {selectedChat.name}
-                  </span>
-                  <span className="text-xs mt-0.5 flex items-center gap-1.5">
-                    {activeTyping.length > 0 ? (
-                      <span className="text-indigo-400">
-                        {activeTyping.map((tu) => tu.username).join(', ')} is typing…
-                      </span>
-                    ) : isUserOnline(selectedChat.otherUser?.id) ? (
-                      <>
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        <span className="text-emerald-400">Online</span>
-                      </>
-                    ) : (
-                      <span className="text-slate-500">Offline</span>
-                    )}
-                  </span>
+                {isUserOnline(selectedChat.otherUser?.id) && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-positive ring-2 ring-surface" />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="text-[13.5px] font-semibold text-ink leading-tight truncate">
+                  {selectedChat.name}
+                </div>
+                <div className="text-[11px] leading-tight mt-0.5 truncate">
+                  {activeTyping.length > 0 ? (
+                    <span className="text-accent-bright">
+                      {activeTyping.map((tu) => tu.username).join(', ')} is typing…
+                    </span>
+                  ) : primaryRepo ? (
+                    <span className="text-subtle font-mono">{primaryRepo.fullName}</span>
+                  ) : isUserOnline(selectedChat.otherUser?.id) ? (
+                    <span className="text-positive">Online</span>
+                  ) : (
+                    <span className="text-subtle">Offline</span>
+                  )}
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                {/* Shared Notes / Canvas Toggle */}
-                <button
-                  onClick={() => setActiveRightPanel(activeRightPanel === 'notes' ? null : 'notes')}
-                  className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 ${
-                    activeRightPanel === 'notes'
-                    ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/40' 
-                    : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border-indigo-500/20'
-                  }`}
-                  title="Shared Canvas"
-                >
-                  <FileText className="w-5 h-5" />
-                </button>
 
-                {/* GitHub Workspace Toggle */}
-                <button
+              {/* One segmented control instead of four competing buttons */}
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-raised border border-line shrink-0">
+                <PanelTab
+                  active={activeRightPanel === 'github'}
                   onClick={() => setActiveRightPanel(activeRightPanel === 'github' ? null : 'github')}
-                  className={`relative p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 ${
-                    activeRightPanel === 'github'
-                    ? 'bg-slate-700/40 text-slate-100 border-slate-600/60'
-                    : 'bg-slate-800/40 hover:bg-slate-700/40 text-slate-400 hover:text-slate-200 border-slate-700/40'
-                  }`}
-                  title={
+                  label={
                     primaryRepo
                       ? `GitHub — ${primaryRepo.fullName}`
                       : githubStatus?.connected
                       ? 'GitHub — link a repository'
                       : 'Connect GitHub'
                   }
+                  badge={unreadActivity[selectedChatId] || 0}
+                  dot={!githubStatus?.connected}
                 >
-                  <GitHubMark className="w-5 h-5" />
-                  {(unreadActivity[selectedChatId] || 0) > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-indigo-500 text-white text-[9px] font-bold flex items-center justify-center">
-                      {unreadActivity[selectedChatId] > 9 ? '9+' : unreadActivity[selectedChatId]}
-                    </span>
-                  )}
-                  {!githubStatus?.connected && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500" />
-                  )}
-                </button>
+                  <GitHubMark className="w-4 h-4" />
+                </PanelTab>
 
-                {/* AI Assistant Toggle */}
-                <button
+                <PanelTab
+                  active={activeRightPanel === 'ai'}
                   onClick={() => setActiveRightPanel(activeRightPanel === 'ai' ? null : 'ai')}
-                  className={`p-2.5 rounded-xl border transition-all shadow-sm flex items-center gap-2 ${
-                    activeRightPanel === 'ai'
-                    ? 'bg-purple-600/20 text-purple-300 border-purple-500/40' 
-                    : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 border-purple-500/20'
-                  }`}
-                  title="AI Assistant"
+                  label="AI assistant"
                 >
-                  <BrainCircuit className="w-5 h-5" />
-                </button>
+                  <BrainCircuit className="w-4 h-4" />
+                </PanelTab>
 
-                {/* Call Button */}
-                {selectedChat.otherUser?.id ? (
-                  <button
-                    onClick={() => {
-                      const otherUserId = selectedChat.otherUser?.id;
-                      if (otherUserId) {
-                        webrtcService.callUser(otherUserId, selectedChat.name);
-                      }
-                    }}
-                    className="p-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 transition-all shadow-sm"
-                    title="Start Video Call"
-                  >
-                    <Video className="w-5 h-5" />
-                  </button>
-                ) : null}
+                <PanelTab
+                  active={activeRightPanel === 'notes'}
+                  onClick={() => setActiveRightPanel(activeRightPanel === 'notes' ? null : 'notes')}
+                  label="Shared canvas"
+                >
+                  <FileText className="w-4 h-4" />
+                </PanelTab>
               </div>
-            </div>
-            
+
+              {selectedChat.otherUser?.id ? (
+                <button
+                  onClick={() => {
+                    const otherUserId = selectedChat.otherUser?.id;
+                    if (otherUserId) webrtcService.callUser(otherUserId, selectedChat.name);
+                  }}
+                  aria-label={`Start a video call with ${selectedChat.name}`}
+                  title="Start video call"
+                  className="shrink-0 p-2 rounded-lg text-muted hover:text-ink hover:bg-hover transition-colors"
+                >
+                  <Video className="w-4 h-4" />
+                </button>
+              ) : null}
+            </header>
+
             {/* Split Pane Container */}
             <div className="flex-1 flex overflow-hidden">
               {/* Main Chat Content */}
-              <div className="flex-1 flex flex-col min-w-0 bg-slate-950/80 relative">
+              <div className="flex-1 flex flex-col min-w-0 relative">
                 {/* Chat Pane Message History */}
                 <div
                   ref={messagesContainerRef}
@@ -1267,50 +1298,59 @@ export default function ChatPage() {
                   className="flex-1 overflow-y-auto p-6 min-h-0 custom-scrollbar relative"
                 >
               {/* Catch Me Up AI Action */}
-              {messages.length > 5 && (
-                <div className="flex justify-center mb-6">
+              {messages.length > 5 && !summary && (
+                <div className="flex justify-center pb-2">
                   <button
                     onClick={handleGenerateSummary}
                     disabled={isSummarizing}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 hover:border-indigo-400 text-sm font-medium text-indigo-300 hover:text-indigo-200 transition-all shadow-lg"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line bg-raised hover:border-accent/40 hover:text-accent-ink text-[11.5px] font-medium text-muted transition-colors disabled:opacity-50"
                   >
                     {isSummarizing ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
-                      <Sparkles className="w-4 h-4 text-purple-400" />
+                      <Sparkles className="w-3 h-3" />
                     )}
-                    {isSummarizing ? 'Summarizing...' : 'Catch Me Up'}
+                    {isSummarizing ? 'Reading the thread…' : 'Catch me up'}
                   </button>
                 </div>
               )}
 
               {/* Summary Display */}
               {summary && (
-                <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-5 mb-6 text-sm text-indigo-100 shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-3 opacity-20 pointer-events-none">
-                    <Sparkles className="w-12 h-12" />
+                <div className="rounded-xl border border-accent/25 bg-accent-soft overflow-hidden mb-2 rise">
+                  <div className="flex items-center gap-2 px-3.5 py-2 border-b border-accent/15">
+                    <Wand2 className="w-3.5 h-3.5 text-accent-bright" />
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-accent-ink flex-1">
+                      Caught up
+                    </span>
+                    <button
+                      onClick={() => setSummary(null)}
+                      aria-label="Dismiss summary"
+                      className="p-0.5 rounded text-accent-ink/60 hover:text-accent-ink transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <h3 className="font-semibold text-indigo-300 flex items-center gap-2 mb-3">
-                    <Wand2 className="w-4 h-4" /> AI Summary
-                  </h3>
-                  <div className="whitespace-pre-wrap leading-relaxed opacity-90 pl-1">{summary}</div>
+                  <div className="px-3.5 py-3 text-[12.5px] leading-relaxed text-ink/90 whitespace-pre-wrap">
+                    {summary}
+                  </div>
                 </div>
               )}
 
               {/* Pagination Trigger */}
               {hasMoreMessages && messages.length >= 50 && (
-                <div className="flex justify-center pb-4">
+                <div className="flex justify-center pb-3">
                   <button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900/60 hover:bg-slate-800 border border-slate-800/80 hover:border-slate-700 text-xs font-semibold text-indigo-400 hover:text-indigo-300 disabled:opacity-50 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-line bg-raised hover:bg-hover text-[11.5px] font-medium text-muted hover:text-ink disabled:opacity-50 transition-colors"
                   >
                     {loadingMore ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      <RefreshCw className="w-3 h-3" />
                     )}
-                    Load older messages
+                    {loadingMore ? 'Loading…' : 'Load earlier messages'}
                   </button>
                 </div>
               )}
@@ -1329,12 +1369,12 @@ export default function ChatPage() {
                   const endsGroup = !next || !continuesGroup(message, next);
 
                   const daySeparator = startsNewDay ? (
-                    <div key={`day-${message.id}`} className="flex items-center gap-3 py-2">
-                      <div className="flex-1 h-px bg-slate-800/70" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-2 py-1 rounded-full bg-slate-900/60 border border-slate-800/60">
+                    <div key={`day-${message.id}`} className="flex items-center gap-3 pt-6 pb-1">
+                      <div className="flex-1 h-px bg-line" />
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-faint">
                         {formatDayLabel(message.createdAt)}
                       </span>
-                      <div className="flex-1 h-px bg-slate-800/70" />
+                      <div className="flex-1 h-px bg-line" />
                     </div>
                   ) : null;
 
@@ -1342,20 +1382,18 @@ export default function ChatPage() {
                     return (
                       <React.Fragment key={`wrap-${message.id}`}>
                       {daySeparator}
-                      <div key={message.id} className="flex gap-3 max-w-[85%] mr-auto group mt-4">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg border border-white/10 self-end mb-1">
-                          <BrainCircuit className="w-4 h-4 text-white" />
+                      <div key={message.id} className="mt-4 rounded-xl border border-accent/20 bg-accent-soft overflow-hidden rise">
+                        <div className="flex items-center gap-2 px-3.5 py-2 border-b border-accent/12">
+                          <Wand2 className="w-3.5 h-3.5 text-accent-bright" />
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-accent-ink flex-1">
+                            Synq AI
+                          </span>
+                          <span className="text-[10px] text-subtle tnum">
+                            {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
-                        <div className="flex flex-col">
-                          <div className="px-5 py-3 rounded-2xl rounded-bl-none text-sm shadow-xl relative bg-slate-900 border border-indigo-500/30 text-indigo-50/90 overflow-hidden">
-                            <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
-                              <Sparkles className="w-16 h-16" />
-                            </div>
-                            <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider mb-1 block flex items-center gap-1.5">
-                              <Wand2 className="w-3 h-3" /> Synq AI Command
-                            </span>
-                            <div className="relative z-10"><MessageBody content={message.content} chatId={selectedChatId} /></div>
-                          </div>
+                        <div className="px-3.5 py-3 text-[13px] text-ink/90">
+                          <MessageBody content={message.content} chatId={selectedChatId} />
                         </div>
                       </div>
                       </React.Fragment>
@@ -1366,7 +1404,7 @@ export default function ChatPage() {
                     <React.Fragment key={`wrap-${message.id}`}>
                     {daySeparator}
                     <div
-                      className={`flex gap-3 max-w-[70%] ${isMe ? 'ml-auto flex-row-reverse' : 'mr-auto'} ${
+                      className={`flex gap-3 max-w-[min(72%,680px)] ${isMe ? 'ml-auto flex-row-reverse' : 'mr-auto'} ${
                         grouped ? 'mt-1' : 'mt-4'
                       }`}
                     >
@@ -1379,18 +1417,20 @@ export default function ChatPage() {
                           <img
                             src={message.senderAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${message.senderName}`}
                             alt=""
-                            className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/50 self-end mb-1 shrink-0"
+                            className="w-8 h-8 rounded-lg bg-raised self-end mb-1 shrink-0"
                           />
                         ))}
                       <div className="flex flex-col">
                         <div
-                          className={`px-4 py-2.5 rounded-2xl text-sm shadow-md transition-all relative group ${
+                          className={`px-3.5 py-2 text-[13.5px] leading-relaxed transition-all relative group ${
                             isMe
-                              ? isFailed 
-                                ? 'bg-red-950/40 border border-red-500/30 text-slate-100 rounded-br-none'
-                                : 'bg-indigo-600 text-white rounded-br-none'
-                              : 'bg-slate-900 border border-slate-800/60 text-slate-100 rounded-bl-none'
-                          } ${isSending ? 'opacity-60' : ''}`}
+                              ? isFailed
+                                ? 'bg-critical/10 border border-critical/30 text-ink rounded-xl rounded-br-sm'
+                                : 'bg-accent text-white rounded-xl rounded-br-sm on-accent'
+                              : 'bg-raised border border-line text-ink rounded-xl rounded-bl-sm'
+                          } ${grouped ? (isMe ? 'rounded-tr-sm' : 'rounded-tl-sm') : ''} ${
+                            isSending ? 'opacity-60' : ''
+                          }`}
                         >
                           <MessageBody content={message.content} chatId={selectedChatId} />
                           
@@ -1398,7 +1438,7 @@ export default function ChatPage() {
                           {isFailed && (
                             <button
                               onClick={() => handleRetryMessage(message)}
-                              className="absolute top-1/2 -left-10 -translate-y-1/2 p-1.5 rounded-md bg-slate-900 border border-slate-800 hover:border-red-500/40 text-red-400 hover:text-red-300 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute top-1/2 -left-9 -translate-y-1/2 p-1.5 rounded-md bg-raised border border-line hover:border-critical/40 text-critical shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                               title="Failed. Click to retry sending."
                             >
                               <RefreshCw className="w-3 h-3 animate-spin-reverse" />
@@ -1406,7 +1446,7 @@ export default function ChatPage() {
                           )}
                         </div>
                         <div
-                          className={`text-[10px] text-slate-500 flex items-center gap-1.5 ${
+                          className={`text-[10px] text-faint tnum flex items-center gap-1.5 ${
                             isMe ? 'justify-end' : 'justify-start'
                           } ${endsGroup || isFailed || isSending ? 'mt-1' : 'h-0 overflow-hidden'}`}
                         >
@@ -1415,19 +1455,19 @@ export default function ChatPage() {
                             minute: '2-digit',
                           })}
                           {isMe && isSending && (
-                            <Clock className="w-3 h-3 text-slate-500 animate-pulse" />
+                            <Clock className="w-3 h-3 text-faint animate-pulse" />
                           )}
                           {isMe && isFailed && (
-                            <span className="text-[9px] text-red-400 font-semibold uppercase tracking-wider">Failed</span>
+                            <span className="text-[9px] text-critical font-semibold uppercase tracking-wider">Failed</span>
                           )}
                           {isMe && message.status === 'SENT' && (
-                            <Check className="w-3.5 h-3.5 text-slate-400" />
+                            <Check className="w-3.5 h-3.5 text-faint" />
                           )}
                           {isMe && message.status === 'DELIVERED' && (
-                            <CheckCheck className="w-3.5 h-3.5 text-slate-400" />
+                            <CheckCheck className="w-3.5 h-3.5 text-faint" />
                           )}
                           {isMe && message.status === 'READ' && (
-                            <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+                            <CheckCheck className="w-3.5 h-3.5 text-accent-bright" />
                           )}
                         </div>
                       </div>
@@ -1436,12 +1476,26 @@ export default function ChatPage() {
                   );
                 })
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 p-4">
-                  <MessageSquare className="w-12 h-12 text-slate-700 mb-3" />
-                  <p className="font-semibold text-slate-400">Say hello!</p>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Start the conversation. Your messages are securely cached.
+                <div className="h-full flex flex-col items-center justify-center text-center px-6 py-10">
+                  <div className="w-11 h-11 rounded-xl bg-raised border border-line flex items-center justify-center mb-4">
+                    <MessageSquare className="w-5 h-5 text-subtle" />
+                  </div>
+                  <p className="text-[14px] font-semibold text-ink">
+                    Start talking to {selectedChat.name}
                   </p>
+                  <p className="text-[12px] text-subtle mt-1.5 max-w-xs leading-relaxed">
+                    Messages are end-to-end encrypted. Reference code inline and it resolves live:
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3">
+                    {['#412', '@a1b2c3d', 'src/app/page.tsx:20-40'].map((token) => (
+                      <code
+                        key={token}
+                        className="px-2 py-1 rounded-md bg-raised border border-line font-mono text-[11px] text-accent-ink"
+                      >
+                        {token}
+                      </code>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -1451,12 +1505,12 @@ export default function ChatPage() {
                   <img
                     src={selectedChat.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${selectedChat.name}`}
                     alt=""
-                    className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/50"
+                    className="w-8 h-8 rounded-lg bg-raised"
                   />
-                  <div className="bg-slate-900 border border-slate-800/60 px-4 py-3 rounded-2xl rounded-bl-none flex items-center gap-1 shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="bg-raised border border-line px-3.5 py-2.5 rounded-xl rounded-bl-sm flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-subtle animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-subtle animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-subtle animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               )}
@@ -1468,7 +1522,7 @@ export default function ChatPage() {
               <button
                 onClick={jumpToLatest}
                 aria-label="Jump to latest messages"
-                className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 pl-3 pr-3.5 py-2 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 shadow-2xl transition-colors animate-in fade-in slide-in-from-bottom-2"
+                className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 pl-2.5 pr-3 py-1.5 rounded-full bg-raised hover:bg-hover border border-line-strong text-[11.5px] font-medium text-ink shadow-2xl shadow-black/50 transition-colors rise"
               >
                 <ChevronDown className="w-4 h-4" />
                 {missedWhileScrolledUp > 0
@@ -1478,7 +1532,7 @@ export default function ChatPage() {
             )}
 
             {/* Smart Replies & Chat Pane Message Input */}
-            <div className="p-4 bg-slate-900/10 backdrop-blur-md border-t border-slate-800/60 flex flex-col gap-3">
+            <div className="px-4 pt-2.5 pb-3 bg-surface/70 backdrop-blur-xl border-t border-line flex flex-col gap-2">
               
             {/* AI Smart Replies & Actions Row */}
             {(smartReplies.length > 0 || smartActions.length > 0) && (
@@ -1496,9 +1550,9 @@ export default function ChatPage() {
                       setSmartActions([]);
                       setSmartReplies([]);
                     }}
-                    className="px-4 py-1.5 rounded-full border border-blue-500/50 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5"
+                    className="px-2.5 py-1 rounded-full border border-accent/30 bg-accent-soft hover:border-accent/60 text-accent-ink text-[11.5px] font-medium whitespace-nowrap transition-colors flex items-center gap-1.5"
                   >
-                    <Zap className="w-3.5 h-3.5 text-blue-400" />
+                    <Zap className="w-3 h-3" />
                     {action.label}
                   </button>
                 ))}
@@ -1510,9 +1564,9 @@ export default function ChatPage() {
                       setSmartReplies([]);
                       setSmartActions([]);
                     }}
-                    className="px-4 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5"
+                    className="px-2.5 py-1 rounded-full border border-line bg-raised hover:border-line-strong hover:text-ink text-muted text-[11.5px] font-medium whitespace-nowrap transition-colors flex items-center gap-1.5"
                   >
-                    <Sparkles className="w-3 h-3 opacity-70" />
+                    <Sparkles className="w-3 h-3 opacity-60" />
                     {reply}
                   </button>
                 ))}
@@ -1522,8 +1576,8 @@ export default function ChatPage() {
               <form onSubmit={handleSendMessage} className="flex gap-3 items-center">
                 <div className="flex-1 relative flex items-center">
                   {showCommandsDropdown && filteredCommands.length > 0 && (
-                    <div className="absolute bottom-full left-0 mb-3 bg-slate-900 border border-slate-800/80 rounded-xl shadow-2xl w-80 max-h-60 overflow-y-auto z-30 p-1.5 divide-y divide-slate-800/50 backdrop-blur-xl animate-in slide-in-from-bottom-2 duration-200">
-                      <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <div className="absolute bottom-full left-0 mb-2 bg-surface border border-line-strong rounded-xl shadow-2xl shadow-black/60 w-[340px] max-h-64 overflow-y-auto z-30 p-1 custom-scrollbar rise">
+                      <div className="px-2.5 py-1.5 text-[10px] font-semibold text-faint uppercase tracking-[0.08em]">
                         AI Slash Commands
                       </div>
                       <div className="py-1">
@@ -1536,15 +1590,15 @@ export default function ChatPage() {
                               onClick={() => selectCommand(cmd)}
                               className={`w-full text-left px-3 py-2 rounded-lg flex flex-col transition-colors ${
                                 isActive 
-                                  ? 'bg-purple-600/20 border border-purple-500/30 text-white' 
-                                  : 'border border-transparent hover:bg-slate-800/50 text-slate-300 hover:text-slate-200'
+                                  ? 'bg-active text-ink' 
+                                  : 'text-muted hover:bg-hover hover:text-ink'
                               }`}
                             >
                               <div className="flex justify-between items-center w-full">
-                                <span className="text-xs font-bold text-purple-400 font-mono">{cmd.name}</span>
-                                <span className="text-[9px] text-slate-500 font-mono">{cmd.usage}</span>
+                                <span className="text-[12px] font-semibold text-accent-ink font-mono">{cmd.name}</span>
+                                <span className="text-[10px] text-faint font-mono">{cmd.usage}</span>
                               </div>
-                              <span className="text-[10px] text-slate-400 mt-0.5">{cmd.description}</span>
+                              <span className="text-[10.5px] text-subtle mt-0.5">{cmd.description}</span>
                             </button>
                           );
                         })}
@@ -1567,28 +1621,46 @@ export default function ChatPage() {
                     onChange={handleTyping}
                     onKeyDown={handleInputKeyDown}
                     onBlur={() => setRefQuery(null)}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-3 pr-10 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all duration-200"
+                    className="w-full h-11 bg-raised border border-line rounded-xl pl-3.5 pr-10 text-[13.5px] text-ink placeholder-faint focus:outline-none focus:border-accent/50 focus:bg-hover transition-colors"
                     placeholder={
                       primaryRepo
                         ? `Message ${selectedChat.name} — # for a PR, path/file.ts:20-40 for code`
                         : `Write a message to ${selectedChat.name}...`
                     }
                   />
-                  <button
-                    type="button"
-                    className="absolute right-3 text-slate-500 hover:text-slate-300 transition-colors"
+                  <span
+                    className="absolute right-3 text-faint pointer-events-none"
+                    title="Type / for commands, # to reference a pull request"
                   >
-                    <Smile className="w-5 h-5" />
-                  </button>
+                    <Smile className="w-4 h-4" />
+                  </span>
                 </div>
                 <button
                   type="submit"
                   disabled={!messageInput.trim()}
-                  className="p-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed hover:shadow-lg hover:shadow-indigo-500/15 active:scale-[0.98] transition-all"
+                  aria-label="Send message"
+                  className="h-11 w-11 shrink-0 grid place-items-center rounded-xl bg-accent hover:bg-accent-bright disabled:bg-raised disabled:text-faint text-white active:scale-[0.97] transition-all"
                 >
-                  <Send className="w-4 h-4 text-white" />
+                  <Send className="w-4 h-4" />
                 </button>
               </form>
+
+              <div className="flex items-center gap-3 px-0.5 text-[10.5px] text-faint">
+                <span className="flex items-center gap-1">
+                  <kbd className="px-1 py-px rounded border border-line bg-raised font-mono">/</kbd>
+                  commands
+                </span>
+                {primaryRepo && (
+                  <span className="flex items-center gap-1">
+                    <kbd className="px-1 py-px rounded border border-line bg-raised font-mono">#</kbd>
+                    reference {primaryRepo.name}
+                  </span>
+                )}
+                <span className="ml-auto flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" />
+                  End-to-end encrypted
+                </span>
+              </div>
             </div>
           </div>
           
@@ -1619,18 +1691,58 @@ export default function ChatPage() {
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 mb-6 shadow-inner animate-pulse">
-              <Users className="w-8 h-8" />
-            </div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">
-              Start Messaging
-            </h2>
-            <p className="text-sm text-slate-400 max-w-sm mt-2">
-              Select an existing contact from the sidebar or search for users to initiate a new direct message conversation.
+            <SynqMark className="w-10 h-10 text-line-strong mb-5" />
+            <h2 className="text-lg font-semibold text-ink tracking-tight">No conversation open</h2>
+            <p className="text-[13px] text-subtle max-w-sm mt-2 leading-relaxed">
+              Pick a conversation from the sidebar, or press{' '}
+              <kbd className="px-1.5 py-0.5 rounded border border-line bg-raised font-mono text-[11px] text-muted">/</kbd>{' '}
+              to find a teammate.
             </p>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * One segment of the header's panel switcher. Icon-only, so the accessible name
+ * comes from the label rather than the glyph.
+ */
+function PanelTab({
+  active,
+  onClick,
+  label,
+  children,
+  badge = 0,
+  dot = false,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  children: React.ReactNode;
+  badge?: number;
+  dot?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      aria-pressed={active}
+      title={label}
+      className={`relative p-1.5 rounded-md transition-colors ${
+        active ? 'bg-active text-ink shadow-sm' : 'text-subtle hover:text-ink hover:bg-hover'
+      }`}
+    >
+      {children}
+      {badge > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 rounded-full bg-accent text-white text-[9px] font-semibold tnum flex items-center justify-center">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
+      {badge === 0 && dot && (
+        <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-caution" />
+      )}
+    </button>
   );
 }

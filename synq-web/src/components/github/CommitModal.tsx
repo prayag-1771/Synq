@@ -76,35 +76,35 @@ export default function CommitModal() {
   const [subject, ...bodyLines] = (commit?.message || '').split('\n');
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl h-[85vh] shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-800/60 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/60 flex items-center justify-center text-slate-300 shrink-0">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-canvas/80 backdrop-blur-sm">
+      <div className="bg-surface border border-line rounded-2xl w-full max-w-4xl h-[85vh] shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-line/60 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-raised border border-line-strong/60 flex items-center justify-center text-ink/85 shrink-0">
             <GitCommit className="w-4 h-4" />
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-[11px] text-slate-500">
+              <span className="font-mono text-[11px] text-subtle">
                 {target.owner}/{target.repo}
               </span>
-              <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+              <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-raised text-ink/85">
                 {target.sha.slice(0, 7)}
               </span>
             </div>
-            <h2 className="text-sm font-semibold text-slate-100 leading-snug">{loading ? 'Loading…' : subject}</h2>
+            <h2 className="text-sm font-semibold text-ink leading-snug">{loading ? 'Loading…' : subject}</h2>
 
             {commit && (
               <div className="flex items-center flex-wrap gap-2.5 mt-2 text-[11px]">
                 {commit.author?.login && (
-                  <span className="flex items-center gap-1.5 text-slate-400">
+                  <span className="flex items-center gap-1.5 text-muted">
                     {commit.author.avatarUrl && (
-                      <img src={commit.author.avatarUrl} alt="" className="w-4 h-4 rounded-full bg-slate-800" />
+                      <img src={commit.author.avatarUrl} alt="" className="w-4 h-4 rounded-full bg-raised" />
                     )}
                     {commit.author.login}
                   </span>
                 )}
-                <span className="text-slate-600">{new Date(commit.date).toLocaleString()}</span>
+                <span className="text-faint">{new Date(commit.date).toLocaleString()}</span>
                 {commit.stats && (
                   <span className="font-mono flex items-center gap-1.5">
                     <span className="text-emerald-400 flex items-center gap-0.5">
@@ -128,7 +128,7 @@ export default function CommitModal() {
                 flash('Reference added to your message');
               }}
               title="Add this reference to your message"
-              className="p-2 rounded-xl text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+              className="p-2 rounded-xl text-muted hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
             >
               <Share2 className="w-4 h-4" />
             </button>
@@ -137,14 +137,14 @@ export default function CommitModal() {
                 href={commit.htmlUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-xl text-muted hover:text-ink hover:bg-raised transition-colors"
               >
                 <ExternalLink className="w-4 h-4" />
               </a>
             )}
             <button
               onClick={() => openCommit(null)}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              className="p-2 rounded-xl text-muted hover:text-ink hover:bg-raised transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -168,8 +168,8 @@ export default function CommitModal() {
           {commit && (
             <>
               {bodyLines.join('\n').trim() && (
-                <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                  <pre className="text-[11px] text-slate-400 whitespace-pre-wrap font-mono leading-relaxed">
+                <div className="rounded-xl border border-line bg-canvas/40 p-4">
+                  <pre className="text-[11px] text-muted whitespace-pre-wrap font-mono leading-relaxed">
                     {bodyLines.join('\n').trim()}
                   </pre>
                 </div>
@@ -205,7 +205,7 @@ export default function CommitModal() {
                         if (e.key === 'Enter') explain();
                       }}
                       placeholder="Ask something specific, or leave blank for a full explanation…"
-                      className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                      className="flex-1 px-3 py-2 bg-canvas border border-line rounded-lg text-xs text-ink placeholder-faint focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
                     />
                     <button
                       onClick={explain}
@@ -233,7 +233,7 @@ export default function CommitModal() {
         </div>
 
         {toast && (
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-slate-200 shadow-2xl animate-in fade-in slide-in-from-bottom-2">
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-raised border border-line-strong text-xs text-ink shadow-2xl animate-in fade-in slide-in-from-bottom-2">
             {toast}
           </div>
         )}

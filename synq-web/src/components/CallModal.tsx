@@ -37,13 +37,13 @@ export default function CallModal() {
   // Incoming Call State
   if (incomingCall && !isCalling) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 flex flex-col items-center shadow-2xl max-w-sm w-full mx-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="bg-surface border border-line rounded-2xl p-8 flex flex-col items-center shadow-2xl max-w-sm w-full mx-4">
           <div className="w-20 h-20 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center mb-6 animate-pulse">
             <Phone className="w-8 h-8 text-indigo-400" />
           </div>
           <h2 className="text-xl font-bold text-white mb-2">Incoming Video Call</h2>
-          <p className="text-slate-400 mb-8">{incomingCall.callerName} is calling you...</p>
+          <p className="text-muted mb-8">{incomingCall.callerName} is calling you...</p>
           
           <div className="flex gap-4 w-full">
             <button
@@ -66,7 +66,7 @@ export default function CallModal() {
 
   // Active Call State
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col animate-in slide-in-from-bottom-8 duration-300">
+    <div className="fixed inset-0 z-50 bg-canvas flex flex-col animate-in slide-in-from-bottom-8 duration-300">
       {/* Remote Video (Full Screen) */}
       <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
         {remoteStream ? (
@@ -78,15 +78,15 @@ export default function CallModal() {
           />
         ) : (
           <div className="flex flex-col items-center animate-pulse">
-            <div className="w-24 h-24 rounded-full bg-slate-800 flex items-center justify-center mb-4">
-              <Video className="w-10 h-10 text-slate-600" />
+            <div className="w-24 h-24 rounded-full bg-raised flex items-center justify-center mb-4">
+              <Video className="w-10 h-10 text-faint" />
             </div>
-            <p className="text-slate-400 font-medium tracking-wide">Connecting to {remoteUserName}...</p>
+            <p className="text-muted font-medium tracking-wide">Connecting to {remoteUserName}...</p>
           </div>
         )}
 
         {/* Local Video (PiP) */}
-        <div className="absolute top-6 right-6 w-32 md:w-48 aspect-[3/4] bg-slate-900 rounded-xl overflow-hidden shadow-2xl border-2 border-slate-800/80 z-10">
+        <div className="absolute top-6 right-6 w-32 md:w-48 aspect-[3/4] bg-surface rounded-xl overflow-hidden shadow-2xl border-2 border-line/80 z-10">
           {localStream ? (
             <video
               ref={localVideoRef}
@@ -96,27 +96,27 @@ export default function CallModal() {
               className="w-full h-full object-cover transform scale-x-[-1]"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-slate-900">
-              <VideoOff className="w-6 h-6 text-slate-600" />
+            <div className="w-full h-full flex items-center justify-center bg-surface">
+              <VideoOff className="w-6 h-6 text-faint" />
             </div>
           )}
         </div>
 
         {/* Name overlay */}
-        <div className="absolute top-6 left-6 px-4 py-2 bg-slate-900/60 backdrop-blur-md rounded-lg border border-slate-800/60 text-white font-medium shadow-lg flex items-center gap-2">
+        <div className="absolute top-6 left-6 px-4 py-2 bg-surface/60 backdrop-blur-md rounded-lg border border-line/60 text-white font-medium shadow-lg flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           {remoteUserName}
         </div>
       </div>
 
       {/* Control Bar */}
-      <div className="h-24 bg-slate-900 border-t border-slate-800 flex items-center justify-center gap-6 px-6">
+      <div className="h-24 bg-surface border-t border-line flex items-center justify-center gap-6 px-6">
         <button
           onClick={() => useCallStore.getState().toggleMute()}
           className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
             isMuted 
-              ? 'bg-slate-800 text-slate-400 border border-slate-700' 
-              : 'bg-slate-800 text-white hover:bg-slate-700'
+              ? 'bg-raised text-muted border border-line-strong' 
+              : 'bg-raised text-white hover:bg-hover'
           }`}
         >
           {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
@@ -133,8 +133,8 @@ export default function CallModal() {
           onClick={() => useCallStore.getState().toggleVideo()}
           className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
             isVideoOff 
-              ? 'bg-slate-800 text-slate-400 border border-slate-700' 
-              : 'bg-slate-800 text-white hover:bg-slate-700'
+              ? 'bg-raised text-muted border border-line-strong' 
+              : 'bg-raised text-white hover:bg-hover'
           }`}
         >
           {isVideoOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}

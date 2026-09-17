@@ -1,42 +1,192 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Synq design tokens
+
+   A developer communication tool should read like a precision instrument, not
+   a consumer chat app: near-black canvas with a blue cast, tight borders, and
+   monospace reserved for things that are literally code.
+
+   The app is dark by design, so these are declared once rather than flipped by
+   prefers-color-scheme — a half-light shell behind a dark app is what produced
+   the white edges before.
+--------------------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces, lightest-on-top */
+  --canvas: #07080b;
+  --surface: #0b0d12;
+  --surface-raised: #12151d;
+  --surface-hover: #191d27;
+  --surface-active: #1f2431;
+
+  /* Lines */
+  --line: #1b1f2a;
+  --line-strong: #29303f;
+
+  /* Text */
+  --ink: #e7eaf0;
+  --ink-muted: #949cb0;
+  --ink-subtle: #626b80;
+  --ink-faint: #444c5e;
+
+  /* Brand + status */
+  --accent: #6366f1;
+  --accent-bright: #818cf8;
+  --accent-ink: #c7cbff;
+  --accent-soft: rgba(99, 102, 241, 0.12);
+  --accent-line: rgba(99, 102, 241, 0.28);
+
+  --positive: #34d399;
+  --caution: #fbbf24;
+  --critical: #fb7185;
+
+  --background: var(--canvas);
+  --foreground: var(--ink);
 }
 
 @theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-hover: var(--surface-hover);
+  --color-active: var(--surface-active);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-muted);
+  --color-subtle: var(--ink-subtle);
+  --color-faint: var(--ink-faint);
+
+  --color-accent: var(--accent);
+  --color-accent-bright: var(--accent-bright);
+  --color-accent-ink: var(--accent-ink);
+
+  --color-positive: var(--positive);
+  --color-caution: var(--caution);
+  --color-critical: var(--critical);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* The layout loads Geist and exposes it as --font-geist-sans. This used to be
+   hardcoded to Arial, which silently overrode the loaded font everywhere. */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Custom premium scrollbar for message thread */
+/* Tabular digits keep timestamps and counters from jittering as they update. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbars — present enough to grab, quiet enough to ignore
+--------------------------------------------------------------------------- */
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
 .custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+  width: 10px;
+  height: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.1);
+  background: var(--line);
+  border: 3px solid transparent;
+  background-clip: content-box;
   border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.3);
+  background: var(--line-strong);
+  background-clip: content-box;
 }
 
+/* ---------------------------------------------------------------------------
+   Focus — one visible, consistent ring instead of none
+--------------------------------------------------------------------------- */
+
+:focus-visible {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion — short, and honoured only when the reader allows it
+--------------------------------------------------------------------------- */
+
+@keyframes synq-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes synq-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.rise {
+  animation: synq-rise 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.fade {
+  animation: synq-fade 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Content inside your own (accent) message bubble. Inline code and reference
+   chips switch to translucent white so they read as part of the bubble. */
+.on-accent :not(pre) > code,
+.on-accent [data-ref-chip] {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+.on-accent a {
+  color: #fff;
+  text-decoration-color: rgba(255, 255, 255, 0.5);
+}
+
+/* A soft vignette behind the app shell, painted once rather than per-panel. */
+.app-canvas {
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(99, 102, 241, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(56, 189, 248, 0.05), transparent 55%),
+    var(--canvas);
+}

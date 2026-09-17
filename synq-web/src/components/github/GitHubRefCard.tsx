@@ -39,10 +39,10 @@ const TONE_STYLES: Record<Tone, { text: string; bg: string; border: string; dot:
   open: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', dot: 'bg-emerald-500' },
   merged: { text: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30', dot: 'bg-purple-500' },
   closed: { text: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30', dot: 'bg-rose-500' },
-  draft: { text: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-600/40', dot: 'bg-slate-500' },
+  draft: { text: 'text-muted', bg: 'bg-subtle/10', border: 'border-line-strong/40', dot: 'bg-subtle' },
   success: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', dot: 'bg-emerald-500' },
   failure: { text: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30', dot: 'bg-rose-500' },
-  neutral: { text: 'text-slate-300', bg: 'bg-slate-500/10', border: 'border-slate-700/60', dot: 'bg-slate-500' },
+  neutral: { text: 'text-ink/85', bg: 'bg-subtle/10', border: 'border-line-strong/60', dot: 'bg-subtle' },
 };
 
 const toneOf = (card?: ResolvedRefCard): Tone => card?.tone || 'neutral';
@@ -110,7 +110,7 @@ export const RefChip = ({ raw, card, loading }: ChipProps) => {
     // Still resolving, or the reference could not be resolved at all. Either way
     // the text stays readable — it never gets stuck behind a permanent spinner.
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-slate-800/60 border border-slate-700/50 text-slate-400 font-mono text-[11px] align-baseline">
+      <span data-ref-chip className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-raised/60 border border-line-strong/50 text-muted font-mono text-[11px] align-baseline">
         {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitHubMark className="w-3 h-3 opacity-50" />}
         {raw}
       </span>
@@ -124,7 +124,7 @@ export const RefChip = ({ raw, card, loading }: ChipProps) => {
         target="_blank"
         rel="noopener noreferrer"
         title={card.error}
-        className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:text-slate-200 font-mono text-[11px] align-baseline"
+        data-ref-chip className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-raised/60 border border-line-strong/50 text-muted hover:text-ink font-mono text-[11px] align-baseline"
       >
         <AlertCircle className="w-3 h-3" />
         {raw}
@@ -147,7 +147,7 @@ export const RefChip = ({ raw, card, loading }: ChipProps) => {
       type="button"
       onClick={() => openRef(card)}
       title={`${card.title}${card.state ? ` — ${card.state}` : ''}`}
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md border ${tone.bg} ${tone.border} ${tone.text} hover:brightness-125 font-mono text-[11px] font-medium align-baseline transition-all cursor-pointer`}
+      data-ref-chip className={`inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md border ${tone.bg} ${tone.border} ${tone.text} hover:brightness-125 font-mono text-[11px] font-medium align-baseline transition-all cursor-pointer`}
     >
       <RefIcon card={card} className="w-3 h-3" />
       {label}
@@ -191,18 +191,18 @@ const CodeSnippet = ({ card }: { card: ResolvedRefCard }) => {
   const gutterWidth = String(card.snippet[card.snippet.length - 1].line).length;
 
   return (
-    <div className="mt-2 rounded-lg border border-slate-800 bg-slate-950 overflow-hidden">
+    <div className="mt-2 rounded-lg border border-line bg-canvas overflow-hidden">
       <div className="max-h-64 overflow-auto custom-scrollbar">
         <pre className="text-[11px] leading-relaxed font-mono">
           {card.snippet.map((row) => (
-            <div key={row.line} className="flex hover:bg-slate-900/60">
+            <div key={row.line} className="flex hover:bg-surface/60">
               <span
-                className="shrink-0 select-none px-2 py-px text-right text-slate-600 border-r border-slate-800/80 bg-slate-900/40"
+                className="shrink-0 select-none px-2 py-px text-right text-faint border-r border-line/80 bg-surface/40"
                 style={{ minWidth: `${gutterWidth + 2}ch` }}
               >
                 {row.line}
               </span>
-              <code className="px-3 py-px text-slate-300 whitespace-pre">{row.text || ' '}</code>
+              <code className="px-3 py-px text-ink/85 whitespace-pre">{row.text || ' '}</code>
             </div>
           ))}
         </pre>
@@ -223,17 +223,17 @@ export const RefCard = ({ card, compact = false }: RefCardProps) => {
 
   if (card.error) {
     return (
-      <div className="mt-2 rounded-xl border border-slate-800/80 bg-slate-900/40 px-3 py-2.5 flex items-center gap-2.5">
-        <AlertCircle className="w-4 h-4 text-slate-500 shrink-0" />
+      <div className="mt-2 rounded-xl border border-line/80 bg-surface/40 px-3 py-2.5 flex items-center gap-2.5">
+        <AlertCircle className="w-4 h-4 text-subtle shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-slate-400 truncate">{card.title}</div>
-          <div className="text-[10px] text-slate-600">{card.error}</div>
+          <div className="text-xs font-medium text-muted truncate">{card.title}</div>
+          <div className="text-[10px] text-faint">{card.error}</div>
         </div>
         <a
           href={card.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+          className="p-1.5 rounded-lg text-subtle hover:text-ink/85 hover:bg-raised transition-colors"
         >
           <ExternalLink className="w-3.5 h-3.5" />
         </a>
@@ -242,7 +242,7 @@ export const RefCard = ({ card, compact = false }: RefCardProps) => {
   }
 
   return (
-    <div className={`mt-2 rounded-xl border ${tone.border} bg-slate-900/60 backdrop-blur-sm overflow-hidden hover:bg-slate-900/80 transition-colors`}>
+    <div className={`mt-2 rounded-xl border ${tone.border} bg-surface/60 backdrop-blur-sm overflow-hidden hover:bg-surface/80 transition-colors`}>
       <div className="px-3.5 py-3">
         <div className="flex items-start gap-2.5">
           <div className={`mt-0.5 shrink-0 ${tone.text}`}>
@@ -254,7 +254,7 @@ export const RefCard = ({ card, compact = false }: RefCardProps) => {
               <button
                 type="button"
                 onClick={() => openRef(card)}
-                className="text-left text-sm font-semibold text-slate-100 hover:text-indigo-300 leading-snug transition-colors"
+                className="text-left text-sm font-semibold text-ink hover:text-indigo-300 leading-snug transition-colors"
               >
                 {card.title}
               </button>
@@ -263,7 +263,7 @@ export const RefCard = ({ card, compact = false }: RefCardProps) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="shrink-0 p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+                className="shrink-0 p-1 rounded-md text-subtle hover:text-ink/85 hover:bg-raised transition-colors"
                 title="Open on GitHub"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -272,29 +272,29 @@ export const RefCard = ({ card, compact = false }: RefCardProps) => {
 
             <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5">
               <StateBadge card={card} />
-              {card.subtitle && <span className="text-[11px] text-slate-500 font-mono truncate">{card.subtitle}</span>}
+              {card.subtitle && <span className="text-[11px] text-subtle font-mono truncate">{card.subtitle}</span>}
             </div>
 
             {card.branch?.head && (
-              <div className="flex items-center gap-1.5 mt-2 text-[11px] font-mono text-slate-400">
-                <GitBranch className="w-3 h-3 text-slate-500" />
-                <span className="px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-300">{card.branch.head}</span>
-                <span className="text-slate-600">→</span>
-                <span className="px-1.5 py-0.5 rounded bg-slate-800/80 text-slate-300">{card.branch.base}</span>
+              <div className="flex items-center gap-1.5 mt-2 text-[11px] font-mono text-muted">
+                <GitBranch className="w-3 h-3 text-subtle" />
+                <span className="px-1.5 py-0.5 rounded bg-raised/80 text-ink/85">{card.branch.head}</span>
+                <span className="text-faint">→</span>
+                <span className="px-1.5 py-0.5 rounded bg-raised/80 text-ink/85">{card.branch.base}</span>
               </div>
             )}
 
             {!compact && card.body && card.kind !== 'file' && (
-              <p className="mt-2 text-[11px] text-slate-400 leading-relaxed line-clamp-2">{card.body}</p>
+              <p className="mt-2 text-[11px] text-muted leading-relaxed line-clamp-2">{card.body}</p>
             )}
 
             {card.kind === 'file' && <CodeSnippet card={card} />}
 
             <div className="flex items-center flex-wrap gap-2 mt-2.5">
               {card.author?.login && (
-                <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                <span className="flex items-center gap-1.5 text-[11px] text-subtle">
                   {card.author.avatarUrl && (
-                    <img src={card.author.avatarUrl} alt="" className="w-4 h-4 rounded-full bg-slate-800" />
+                    <img src={card.author.avatarUrl} alt="" className="w-4 h-4 rounded-full bg-raised" />
                   )}
                   {card.author.login}
                 </span>
@@ -315,20 +315,20 @@ export const RefCard = ({ card, compact = false }: RefCardProps) => {
                     </span>
                   )}
                   {card.stats.changedFiles !== undefined && (
-                    <span className="text-slate-500">{card.stats.changedFiles} files</span>
+                    <span className="text-subtle">{card.stats.changedFiles} files</span>
                   )}
                 </span>
               )}
 
               {card.stats?.comments ? (
-                <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                <span className="flex items-center gap-1 text-[11px] text-subtle">
                   <MessageSquare className="w-3 h-3" />
                   {card.stats.comments}
                 </span>
               ) : null}
 
               {card.stats?.openIssues ? (
-                <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                <span className="flex items-center gap-1 text-[11px] text-subtle">
                   <CircleDot className="w-3 h-3" />
                   {card.stats.openIssues} open
                 </span>
@@ -359,7 +359,7 @@ export const RefCard = ({ card, compact = false }: RefCardProps) => {
       </div>
 
       {/* Act on the reference without leaving the conversation. */}
-      <div className="flex items-center gap-1 px-3 py-1.5 border-t border-slate-800/60 bg-slate-950/40">
+      <div className="flex items-center gap-1 px-3 py-1.5 border-t border-line/60 bg-canvas/40">
         {(card.kind === 'pull' || card.kind === 'issue') && card.number && (
           <>
             <CardAction
@@ -399,7 +399,7 @@ export const RefCard = ({ card, compact = false }: RefCardProps) => {
           href={card.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-slate-500 hover:text-slate-300 hover:bg-slate-800/60 transition-colors"
+          className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-subtle hover:text-ink/85 hover:bg-raised/60 transition-colors"
         >
           <GitHubMark className="w-3 h-3" />
           GitHub
@@ -413,7 +413,7 @@ const CardAction = ({ icon, label, onClick }: { icon: React.ReactNode; label: st
   <button
     type="button"
     onClick={onClick}
-    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-muted hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
   >
     {icon}
     {label}

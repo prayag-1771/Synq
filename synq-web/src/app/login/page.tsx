@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import SynqMark from '../../components/SynqMark';
 import { useAuthStore } from '../../stores/authStore';
 import { useCryptoStore } from '../../stores/cryptoStore';
 import { apiService } from '../../services/apiService';
@@ -54,8 +55,6 @@ export default function LoginPage() {
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Cryptography engine failed to load (WASM timeout)')), 5000))
           ]);
           const decryptedPk = await decryptPrivateKey(data.user.encryptedPrivateKey, derivedKey);
-          sessionStorage.setItem('synq_pk', decryptedPk);
-          sessionStorage.setItem('synq_pub', data.user.publicKey);
           setKeys(decryptedPk, data.user.publicKey);
         } catch (cryptoErr: any) {
           console.error('Failed to decrypt private key:', cryptoErr);
@@ -73,45 +72,43 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-slate-50 overflow-hidden text-slate-800">
+    <div className="relative min-h-screen app-canvas flex items-center justify-center overflow-hidden px-4">
       {/* Background Gradients */}
-      <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-indigo-100/60 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-violet-100/60 blur-[120px] pointer-events-none" />
+      
+      
 
       {/* Login Card */}
-      <div className="w-full max-w-md p-8 mx-4 rounded-2xl border border-slate-200/80 bg-white/80 backdrop-blur-xl shadow-2xl shadow-slate-100 relative z-10">
-        <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600 shadow-lg shadow-indigo-500/20 mb-4 animate-pulse">
-            <MessageSquare className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 bg-clip-text text-transparent">
-            Welcome back to Synq
+      <div className="w-full max-w-[400px] rounded-2xl border border-line bg-surface p-7 shadow-2xl shadow-black/50 relative z-10 rise">
+        <div className="flex flex-col items-center mb-7">
+          <SynqMark variant="badge" className="w-10 h-10 mb-4" />
+          <h1 className="text-[21px] font-semibold tracking-tight text-ink">
+            Welcome back
           </h1>
-          <p className="text-sm text-slate-500 mt-2">
-            The AI-native secure collaboration platform
+          <p className="text-[12.5px] text-subtle mt-1.5 text-center">
+            Encrypted team messaging, wired to your repositories
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200/60 text-red-600 text-sm">
+          <div className="mb-5 px-3.5 py-2.5 rounded-lg bg-critical/10 border border-critical/25 text-critical text-[12.5px]">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 tracking-wider uppercase">
+            <label className="text-[10.5px] font-semibold text-subtle tracking-[0.08em] uppercase">
               Username or Email
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-faint">
                 <Mail className="w-4 h-4" />
               </span>
               <input
                 type="text"
                 value={emailOrUsername}
                 onChange={(e) => setEmailOrUsername(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-white/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 shadow-sm"
+                className="w-full h-11 pl-10 pr-3 rounded-lg border border-line bg-raised text-[13.5px] text-ink placeholder-faint focus:outline-none focus:border-accent/60 focus:bg-hover transition-colors"
                 placeholder="Enter username or email"
                 required
               />
@@ -119,18 +116,18 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 tracking-wider uppercase">
+            <label className="text-[10.5px] font-semibold text-subtle tracking-[0.08em] uppercase">
               Password
             </label>
             <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-faint">
                 <Lock className="w-4 h-4" />
               </span>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-white/90 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200 shadow-sm"
+                className="w-full h-11 pl-10 pr-3 rounded-lg border border-line bg-raised text-[13.5px] text-ink placeholder-faint focus:outline-none focus:border-accent/60 focus:bg-hover transition-colors"
                 placeholder="••••••••"
                 required
               />
@@ -140,7 +137,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] disabled:bg-indigo-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-md hover:shadow-indigo-500/20 transition-all duration-200"
+            className="w-full h-11 flex items-center justify-center gap-2 rounded-lg bg-accent hover:bg-accent-bright active:scale-[0.99] disabled:bg-raised disabled:text-faint text-white text-[13.5px] font-semibold transition-all"
           >
             {loading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -153,11 +150,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-slate-500">
+        <p className="mt-6 text-center text-[12.5px] text-subtle">
           New to Synq?{' '}
           <Link
             href="/register"
-            className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors duration-150"
+            className="font-medium text-accent-bright hover:text-accent-ink transition-colors"
           >
             Create an account
           </Link>

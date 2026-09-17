@@ -38,7 +38,7 @@ const renderInline = (text: string, keyPrefix: string): React.ReactNode[] =>
       return (
         <code
           key={`${keyPrefix}-c${i}`}
-          className="px-1.5 py-0.5 mx-0.5 rounded bg-slate-950 border border-slate-800 text-indigo-400 font-mono text-xs select-all"
+          className="px-1.5 py-0.5 mx-0.5 rounded bg-canvas border border-line text-indigo-400 font-mono text-xs select-all"
         >
           {chunk.slice(1, -1)}
         </code>
@@ -60,8 +60,8 @@ const CodeBlock = ({ language, code }: { language: string; code: string }) => {
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="my-2 border border-slate-800 rounded-lg overflow-hidden bg-slate-950 font-mono text-xs text-slate-300">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-slate-900 border-b border-slate-800 text-[10px] text-slate-400 font-sans font-medium uppercase tracking-wider">
+    <div className="my-2 border border-line rounded-lg overflow-hidden bg-canvas font-mono text-xs text-ink/85">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-surface border-b border-line text-[10px] text-muted font-sans font-medium uppercase tracking-wider">
         <span>{language}</span>
         <button
           type="button"
@@ -71,7 +71,7 @@ const CodeBlock = ({ language, code }: { language: string; code: string }) => {
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
           }}
-          className="px-2 py-0.5 hover:bg-slate-800 rounded text-slate-300 hover:text-white transition-colors"
+          className="px-2 py-0.5 hover:bg-raised rounded text-ink/85 hover:text-white transition-colors"
         >
           {copied ? 'Copied' : 'Copy'}
         </button>
@@ -193,9 +193,9 @@ export default function MessageBody({ content, chatId, disableRefs = false }: Me
           <button
             key={`s${segmentIndex}-r${refIndex}`}
             type="button"
-            onClick={() => openConnectModal(true)}
+            data-ref-chip onClick={() => openConnectModal(true)}
             title="Connect GitHub to preview this reference"
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-slate-800/60 border border-slate-700/50 text-slate-400 hover:text-indigo-300 hover:border-indigo-500/40 font-mono text-[11px] align-baseline transition-colors"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-raised/60 border border-line-strong/50 text-muted hover:text-indigo-300 hover:border-indigo-500/40 font-mono text-[11px] align-baseline transition-colors"
           >
             <GitHubMark className="w-3 h-3" />
             {ref.raw}
@@ -234,7 +234,7 @@ export default function MessageBody({ content, chatId, disableRefs = false }: Me
       ))}
 
       {unfurled.length > 3 && (
-        <div className="mt-1.5 text-[10px] text-slate-500 pl-1">
+        <div className="mt-1.5 text-[10px] text-subtle pl-1">
           +{unfurled.length - 3} more reference{unfurled.length - 3 === 1 ? '' : 's'} in this message
         </div>
       )}

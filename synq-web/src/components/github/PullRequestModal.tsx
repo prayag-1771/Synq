@@ -34,7 +34,7 @@ const SEVERITY_STYLES: Record<string, { badge: string; border: string }> = {
   critical: { badge: 'bg-rose-500/15 text-rose-300 border-rose-500/30', border: 'border-l-rose-500' },
   major: { badge: 'bg-orange-500/15 text-orange-300 border-orange-500/30', border: 'border-l-orange-500' },
   minor: { badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30', border: 'border-l-amber-500' },
-  nit: { badge: 'bg-slate-500/15 text-slate-400 border-slate-600/30', border: 'border-l-slate-600' },
+  nit: { badge: 'bg-subtle/15 text-muted border-line-strong/30', border: 'border-l-line-strong' },
 };
 
 /**
@@ -215,7 +215,7 @@ export default function PullRequestModal() {
       : item?.state === 'closed'
       ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
       : pr?.draft
-      ? 'bg-slate-500/15 text-slate-400 border-slate-600/30'
+      ? 'bg-subtle/15 text-muted border-line-strong/30'
       : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
 
   const checksSummary = (detail?.checks || []).reduce(
@@ -229,14 +229,14 @@ export default function PullRequestModal() {
   );
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[88vh] shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-canvas/80 backdrop-blur-sm">
+      <div className="bg-surface border border-line rounded-2xl w-full max-w-5xl h-[88vh] shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-800/60">
+        <div className="px-5 py-4 border-b border-line/60">
           <div className="flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="font-mono text-[11px] text-slate-500">
+                <span className="font-mono text-[11px] text-subtle">
                   {target.owner}/{target.repo}
                 </span>
                 {item && (
@@ -245,20 +245,20 @@ export default function PullRequestModal() {
                   </span>
                 )}
               </div>
-              <h2 className="text-base font-semibold text-slate-100 leading-snug pr-4">
+              <h2 className="text-base font-semibold text-ink leading-snug pr-4">
                 {loading ? 'Loading…' : item?.title || `#${target.number}`}
-                <span className="text-slate-500 font-normal ml-2">#{target.number}</span>
+                <span className="text-subtle font-normal ml-2">#{target.number}</span>
               </h2>
 
               {pr && (
                 <div className="flex items-center flex-wrap gap-2 mt-2 text-[11px]">
-                  <span className="flex items-center gap-1.5 font-mono text-slate-400">
-                    <GitBranch className="w-3 h-3 text-slate-500" />
-                    <span className="px-1.5 py-0.5 rounded bg-slate-800">{pr.head?.ref}</span>
-                    <span className="text-slate-600">→</span>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-800">{pr.base?.ref}</span>
+                  <span className="flex items-center gap-1.5 font-mono text-muted">
+                    <GitBranch className="w-3 h-3 text-subtle" />
+                    <span className="px-1.5 py-0.5 rounded bg-raised">{pr.head?.ref}</span>
+                    <span className="text-faint">→</span>
+                    <span className="px-1.5 py-0.5 rounded bg-raised">{pr.base?.ref}</span>
                   </span>
-                  <span className="font-mono text-slate-500">
+                  <span className="font-mono text-subtle">
                     <span className="text-emerald-400">+{pr.additions}</span>{' '}
                     <span className="text-rose-400">-{pr.deletions}</span> · {pr.changedFiles} files
                   </span>
@@ -270,7 +270,7 @@ export default function PullRequestModal() {
               <button
                 onClick={shareInChat}
                 title="Add this reference to your message"
-                className="p-2 rounded-xl text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                className="p-2 rounded-xl text-muted hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
               >
                 <Share2 className="w-4 h-4" />
               </button>
@@ -279,13 +279,13 @@ export default function PullRequestModal() {
                   href={item.htmlUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                  className="p-2 rounded-xl text-muted hover:text-ink hover:bg-raised transition-colors"
                   title="Open on GitHub"
                 >
                   <ExternalLink className="w-4 h-4" />
                 </a>
               )}
-              <button onClick={close} className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+              <button onClick={close} className="p-2 rounded-xl text-muted hover:text-ink hover:bg-raised transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -354,7 +354,7 @@ export default function PullRequestModal() {
               ))}
 
               {detail.comments?.length === 0 && detail.reviews?.length === 0 && (
-                <p className="text-center text-xs text-slate-600 py-4">No comments yet.</p>
+                <p className="text-center text-xs text-faint py-4">No comments yet.</p>
               )}
             </div>
           )}
@@ -364,7 +364,7 @@ export default function PullRequestModal() {
           {detail && tab === 'checks' && (
             <div className="space-y-2">
               {(detail.checks || []).length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-600 text-sm gap-2">
+                <div className="flex flex-col items-center justify-center py-12 text-faint text-sm gap-2">
                   <ShieldCheck className="w-8 h-8 opacity-30" />
                   No checks have reported for this branch.
                 </div>
@@ -381,12 +381,12 @@ export default function PullRequestModal() {
                       href={check.htmlUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:bg-slate-900/60 transition-colors"
+                      className="flex items-center gap-3 p-3 rounded-xl border border-line bg-canvas/50 hover:bg-surface/60 transition-colors"
                     >
                       <Icon className={`w-4 h-4 shrink-0 ${color} ${running ? 'animate-pulse' : ''}`} />
-                      <span className="text-sm text-slate-300 flex-1 truncate">{check.name}</span>
+                      <span className="text-sm text-ink/85 flex-1 truncate">{check.name}</span>
                       <span className={`text-[11px] font-medium ${color}`}>{check.conclusion || check.status}</span>
-                      <ExternalLink className="w-3 h-3 text-slate-600" />
+                      <ExternalLink className="w-3 h-3 text-faint" />
                     </a>
                   );
                 })
@@ -462,7 +462,7 @@ export default function PullRequestModal() {
                     </button>
                   }
                 >
-                  <p className="text-xs text-slate-300 leading-relaxed">{aiReview.summary}</p>
+                  <p className="text-xs text-ink/85 leading-relaxed">{aiReview.summary}</p>
 
                   {aiReview.findings?.length > 0 ? (
                     <div className="space-y-2 mt-3">
@@ -474,7 +474,7 @@ export default function PullRequestModal() {
                               <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${style.badge}`}>
                                 {finding.severity}
                               </span>
-                              <span className="text-xs font-medium text-slate-200">{finding.title}</span>
+                              <span className="text-xs font-medium text-ink">{finding.title}</span>
                             </div>
                             <button
                               onClick={() => finding.line && quoteLine(finding.file, finding.line)}
@@ -483,7 +483,7 @@ export default function PullRequestModal() {
                               {finding.file}
                               {finding.line ? `:${finding.line}` : ''}
                             </button>
-                            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{finding.detail}</p>
+                            <p className="text-[11px] text-muted mt-1 leading-relaxed">{finding.detail}</p>
                             {finding.suggestion && (
                               <p className="text-[11px] text-emerald-400/80 mt-1 leading-relaxed">→ {finding.suggestion}</p>
                             )}
@@ -499,12 +499,12 @@ export default function PullRequestModal() {
                   )}
 
                   {aiReview.testGaps?.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-slate-800">
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Untested behaviour</div>
+                    <div className="mt-3 pt-3 border-t border-line">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-subtle mb-1.5">Untested behaviour</div>
                       <ul className="space-y-1">
                         {aiReview.testGaps.map((gap: string, i: number) => (
-                          <li key={i} className="text-[11px] text-slate-400 flex gap-2">
-                            <span className="text-slate-600">•</span>
+                          <li key={i} className="text-[11px] text-muted flex gap-2">
+                            <span className="text-faint">•</span>
                             {gap}
                           </li>
                         ))}
@@ -515,10 +515,10 @@ export default function PullRequestModal() {
               )}
 
               {!aiSummary && !aiReview && !aiDescription && !aiBusy && (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-600 text-sm gap-2 text-center">
+                <div className="flex flex-col items-center justify-center py-12 text-faint text-sm gap-2 text-center">
                   <Sparkles className="w-8 h-8 opacity-30" />
                   <p>Ask the AI to read the actual diff.</p>
-                  <p className="text-xs text-slate-700 max-w-xs">
+                  <p className="text-xs text-faint max-w-xs">
                     It reviews real code — not the description — and can post its findings back to GitHub.
                   </p>
                 </div>
@@ -529,20 +529,20 @@ export default function PullRequestModal() {
 
         {/* Action bar */}
         {detail && item?.state !== 'merged' && (
-          <div className="border-t border-slate-800/60 bg-slate-950/50 p-4 space-y-3">
+          <div className="border-t border-line/60 bg-canvas/50 p-4 space-y-3">
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={2}
               placeholder={isPull ? 'Leave a review comment…' : 'Leave a comment…'}
-              className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-600 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              className="w-full px-3 py-2 bg-canvas border border-line rounded-xl text-sm text-ink placeholder-faint resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
             />
 
             <div className="flex items-center flex-wrap gap-2">
               <button
                 onClick={handleComment}
                 disabled={posting || !comment.trim()}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 text-xs font-medium transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-raised hover:bg-hover disabled:opacity-40 text-ink text-xs font-medium transition-colors"
               >
                 {posting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 Comment
@@ -573,7 +573,7 @@ export default function PullRequestModal() {
                         onClick={handleMerge}
                         disabled={merging || pr?.mergeable === false}
                         title={pr?.mergeable === false ? 'GitHub reports this branch has conflicts' : undefined}
-                        className="flex items-center gap-1.5 pl-3 pr-2.5 py-2 rounded-l-xl bg-purple-600 hover:bg-purple-500 disabled:bg-slate-800 disabled:text-slate-600 text-white text-xs font-semibold transition-colors"
+                        className="flex items-center gap-1.5 pl-3 pr-2.5 py-2 rounded-l-xl bg-purple-600 hover:bg-purple-500 disabled:bg-raised disabled:text-faint text-white text-xs font-semibold transition-colors"
                       >
                         {merging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <GitMerge className="w-3.5 h-3.5" />}
                         {mergeMethod === 'squash' ? 'Squash and merge' : mergeMethod === 'rebase' ? 'Rebase and merge' : 'Merge'}
@@ -581,14 +581,14 @@ export default function PullRequestModal() {
                       <button
                         onClick={() => setShowMergeMenu(!showMergeMenu)}
                         disabled={merging || pr?.mergeable === false}
-                        className="px-2 py-2 rounded-r-xl bg-purple-600 hover:bg-purple-500 disabled:bg-slate-800 disabled:text-slate-600 text-white border-l border-purple-500/40 transition-colors"
+                        className="px-2 py-2 rounded-r-xl bg-purple-600 hover:bg-purple-500 disabled:bg-raised disabled:text-faint text-white border-l border-purple-500/40 transition-colors"
                       >
                         <ChevronDown className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
                     {showMergeMenu && (
-                      <div className="absolute bottom-full right-0 mb-2 w-44 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-1 z-10">
+                      <div className="absolute bottom-full right-0 mb-2 w-44 bg-surface border border-line rounded-xl shadow-2xl p-1 z-10">
                         {(['squash', 'merge', 'rebase'] as const).map((method) => (
                           <button
                             key={method}
@@ -597,7 +597,7 @@ export default function PullRequestModal() {
                               setShowMergeMenu(false);
                             }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                              mergeMethod === method ? 'bg-purple-600/20 text-purple-300' : 'text-slate-300 hover:bg-slate-800'
+                              mergeMethod === method ? 'bg-purple-600/20 text-purple-300' : 'text-ink/85 hover:bg-raised'
                             }`}
                           >
                             {method === 'squash' ? 'Squash and merge' : method === 'rebase' ? 'Rebase and merge' : 'Create a merge commit'}
@@ -635,7 +635,7 @@ export default function PullRequestModal() {
         )}
 
         {toast && (
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-slate-200 shadow-2xl animate-in fade-in slide-in-from-bottom-2">
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-raised border border-line-strong text-xs text-ink shadow-2xl animate-in fade-in slide-in-from-bottom-2">
             {toast}
           </div>
         )}
@@ -660,7 +660,7 @@ const TabButton = ({
   <button
     onClick={onClick}
     className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-      active ? 'border-indigo-500 text-indigo-300' : 'border-transparent text-slate-500 hover:text-slate-300'
+      active ? 'border-indigo-500 text-indigo-300' : 'border-transparent text-subtle hover:text-ink/85'
     }`}
   >
     {icon}
@@ -669,7 +669,7 @@ const TabButton = ({
 );
 
 const Count = ({ value }: { value: number }) => (
-  <span className="ml-1 px-1.5 rounded-full bg-slate-800 text-slate-400 text-[10px]">{value}</span>
+  <span className="ml-1 px-1.5 rounded-full bg-raised text-muted text-[10px]">{value}</span>
 );
 
 const AiButton = ({
@@ -734,11 +734,11 @@ const ConversationEntry = ({
   body: string;
   highlight?: boolean;
 }) => (
-  <div className={`rounded-xl border p-4 ${highlight ? 'border-slate-700/60 bg-slate-950/50' : 'border-slate-800 bg-slate-950/30'}`}>
+  <div className={`rounded-xl border p-4 ${highlight ? 'border-line-strong/60 bg-canvas/50' : 'border-line bg-canvas/30'}`}>
     <div className="flex items-center gap-2 mb-2.5">
-      {author?.avatarUrl && <img src={author.avatarUrl} alt="" className="w-5 h-5 rounded-full bg-slate-800" />}
-      <span className="text-xs font-medium text-slate-300">{author?.login}</span>
-      <span className="text-[10px] text-slate-600">{new Date(createdAt).toLocaleString()}</span>
+      {author?.avatarUrl && <img src={author.avatarUrl} alt="" className="w-5 h-5 rounded-full bg-raised" />}
+      <span className="text-xs font-medium text-ink/85">{author?.login}</span>
+      <span className="text-[10px] text-faint">{new Date(createdAt).toLocaleString()}</span>
     </div>
     <Markdownish text={body} />
   </div>
@@ -748,18 +748,18 @@ const ReviewEntry = ({ review }: { review: any }) => {
   const approved = review.state === 'APPROVED';
   const changes = review.state === 'CHANGES_REQUESTED';
   const Icon = approved ? CheckCircle2 : changes ? AlertTriangle : MessageSquare;
-  const color = approved ? 'text-emerald-400' : changes ? 'text-rose-400' : 'text-slate-400';
+  const color = approved ? 'text-emerald-400' : changes ? 'text-rose-400' : 'text-muted';
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-4">
+    <div className="rounded-xl border border-line bg-canvas/30 p-4">
       <div className="flex items-center gap-2 mb-2">
-        {review.author?.avatarUrl && <img src={review.author.avatarUrl} alt="" className="w-5 h-5 rounded-full bg-slate-800" />}
-        <span className="text-xs font-medium text-slate-300">{review.author?.login}</span>
+        {review.author?.avatarUrl && <img src={review.author.avatarUrl} alt="" className="w-5 h-5 rounded-full bg-raised" />}
+        <span className="text-xs font-medium text-ink/85">{review.author?.login}</span>
         <span className={`flex items-center gap-1 text-[11px] font-medium ${color}`}>
           <Icon className="w-3 h-3" />
           {approved ? 'approved' : changes ? 'requested changes' : 'reviewed'}
         </span>
-        <span className="text-[10px] text-slate-600 ml-auto">{new Date(review.submittedAt).toLocaleString()}</span>
+        <span className="text-[10px] text-faint ml-auto">{new Date(review.submittedAt).toLocaleString()}</span>
       </div>
       {review.body && <Markdownish text={review.body} />}
     </div>
@@ -768,13 +768,13 @@ const ReviewEntry = ({ review }: { review: any }) => {
 
 /** Lightweight markdown rendering — headings, bullets, bold, inline code, fences. */
 export const Markdownish = ({ text }: { text: string }) => (
-  <div className="text-xs text-slate-300 leading-relaxed space-y-1.5">
+  <div className="text-xs text-ink/85 leading-relaxed space-y-1.5">
     {text.split('\n').map((line, i) => {
       if (!line.trim()) return <div key={i} className="h-1" />;
 
       if (line.startsWith('###') || line.startsWith('##')) {
         return (
-          <div key={i} className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 pt-1">
+          <div key={i} className="text-[11px] font-semibold uppercase tracking-wider text-muted pt-1">
             {line.replace(/^#+\s*/, '')}
           </div>
         );
@@ -786,14 +786,14 @@ export const Markdownish = ({ text }: { text: string }) => (
       const rendered = content.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((chunk, j) => {
         if (chunk.startsWith('`') && chunk.endsWith('`') && chunk.length > 2) {
           return (
-            <code key={j} className="px-1 py-0.5 rounded bg-slate-900 border border-slate-800 text-indigo-400 font-mono text-[11px]">
+            <code key={j} className="px-1 py-0.5 rounded bg-surface border border-line text-indigo-400 font-mono text-[11px]">
               {chunk.slice(1, -1)}
             </code>
           );
         }
         if (chunk.startsWith('**') && chunk.endsWith('**') && chunk.length > 4) {
           return (
-            <strong key={j} className="font-semibold text-slate-100">
+            <strong key={j} className="font-semibold text-ink">
               {chunk.slice(2, -2)}
             </strong>
           );
@@ -803,7 +803,7 @@ export const Markdownish = ({ text }: { text: string }) => (
 
       return bulleted ? (
         <div key={i} className="flex gap-2 pl-1">
-          <span className="text-slate-600 shrink-0">•</span>
+          <span className="text-faint shrink-0">•</span>
           <span>{rendered}</span>
         </div>
       ) : (

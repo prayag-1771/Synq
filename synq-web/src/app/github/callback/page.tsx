@@ -44,18 +44,18 @@ export default function GitHubCallbackPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-slate-100">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center shadow-2xl">
+    <div className="min-h-screen bg-canvas flex items-center justify-center p-6 text-ink">
+      <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-8 text-center shadow-2xl">
         <div className="flex justify-center mb-4">
           {state === 'working' && <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />}
           {state === 'done' && <CheckCircle2 className="w-8 h-8 text-emerald-400" />}
           {state === 'error' && <AlertTriangle className="w-8 h-8 text-rose-400" />}
         </div>
 
-        <h1 className="text-sm font-semibold text-slate-100 mb-2">
+        <h1 className="text-sm font-semibold text-ink mb-2">
           {state === 'error' ? 'Connection failed' : 'GitHub'}
         </h1>
-        <p className="text-xs text-slate-400 leading-relaxed">{message}</p>
+        <p className="text-xs text-muted leading-relaxed">{message}</p>
 
         {state === 'error' && (
           <button

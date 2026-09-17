@@ -115,14 +115,14 @@ export default function RefAutocomplete({ chatId, query, activeIndex, onSuggesti
   if (!primary) return null;
 
   return (
-    <div className="absolute bottom-full left-0 mb-3 bg-slate-900 border border-slate-800/80 rounded-xl shadow-2xl w-96 max-h-72 overflow-y-auto z-30 p-1.5 backdrop-blur-xl animate-in slide-in-from-bottom-2 duration-200 custom-scrollbar">
-      <div className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+    <div className="absolute bottom-full left-0 mb-3 bg-surface border border-line/80 rounded-xl shadow-2xl w-96 max-h-72 overflow-y-auto z-30 p-1.5 backdrop-blur-xl animate-in slide-in-from-bottom-2 duration-200 custom-scrollbar">
+      <div className="px-3 py-1.5 text-[10px] font-bold text-subtle uppercase tracking-wider flex items-center gap-1.5">
         {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-        <span className="font-mono normal-case tracking-normal text-slate-400">{primary.fullName}</span>
+        <span className="font-mono normal-case tracking-normal text-muted">{primary.fullName}</span>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="px-3 py-3 text-[11px] text-slate-600">
+        <div className="px-3 py-3 text-[11px] text-faint">
           {loading ? 'Loading open work…' : 'No matching pull requests or issues.'}
         </div>
       ) : (
@@ -142,7 +142,7 @@ export default function RefAutocomplete({ chatId, query, activeIndex, onSuggesti
             const color =
               item.kind === 'pull'
                 ? item.draft
-                  ? 'text-slate-500'
+                  ? 'text-subtle'
                   : 'text-emerald-400'
                 : item.state === 'closed'
                 ? 'text-purple-400'
@@ -159,13 +159,13 @@ export default function RefAutocomplete({ chatId, query, activeIndex, onSuggesti
                 className={`w-full text-left px-3 py-2 rounded-lg flex items-start gap-2 transition-colors ${
                   index === activeIndex
                     ? 'bg-indigo-600/20 border border-indigo-500/30'
-                    : 'border border-transparent hover:bg-slate-800/50'
+                    : 'border border-transparent hover:bg-raised/50'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${color}`} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] text-slate-200 truncate">{item.title}</div>
-                  <div className="text-[10px] text-slate-500 font-mono">
+                  <div className="text-[11px] text-ink truncate">{item.title}</div>
+                  <div className="text-[10px] text-subtle font-mono">
                     #{item.number}
                     {item.author ? ` · ${item.author}` : ''}
                   </div>

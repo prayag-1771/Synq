@@ -80,7 +80,7 @@ export default function DiffView({ files, onQuoteLine, defaultOpen = 3 }: Props)
 
   if (files.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-slate-600 text-sm gap-2">
+      <div className="flex flex-col items-center justify-center py-12 text-faint text-sm gap-2">
         <FileCode className="w-8 h-8 opacity-30" />
         No file changes to show.
       </div>
@@ -114,24 +114,24 @@ const FileDiff = ({
   onQuoteLine?: (path: string, line: number) => void;
 }) => {
   const lines = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch]);
-  const gutter = 'shrink-0 select-none px-2 text-right text-slate-600 text-[10px] tabular-nums';
+  const gutter = 'shrink-0 select-none px-2 text-right text-faint text-[10px] tabular-nums';
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+    <div className="rounded-xl border border-line bg-canvas/60 overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 py-2 bg-slate-900/60 hover:bg-slate-900 transition-colors text-left"
+        className="w-full flex items-center gap-2 px-3 py-2 bg-surface/60 hover:bg-surface transition-colors text-left"
       >
         {collapsed ? (
-          <ChevronRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-subtle shrink-0" />
         ) : (
-          <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+          <ChevronDown className="w-3.5 h-3.5 text-subtle shrink-0" />
         )}
-        <span className="font-mono text-[11px] text-slate-300 truncate flex-1">{file.filename}</span>
+        <span className="font-mono text-[11px] text-ink/85 truncate flex-1">{file.filename}</span>
 
         <span
           className={`px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase border ${
-            STATUS_STYLES[file.status] || 'text-slate-400 bg-slate-800 border-slate-700'
+            STATUS_STYLES[file.status] || 'text-muted bg-raised border-line-strong'
           }`}
         >
           {file.status}
@@ -151,7 +151,7 @@ const FileDiff = ({
       {!collapsed && (
         <div className="max-h-[420px] overflow-auto custom-scrollbar">
           {lines.length === 0 ? (
-            <div className="px-4 py-3 text-[11px] text-slate-600 italic">
+            <div className="px-4 py-3 text-[11px] text-faint italic">
               No inline diff available (binary file or change too large).
             </div>
           ) : (
@@ -172,16 +172,16 @@ const FileDiff = ({
                     ? 'text-rose-300'
                     : line.type === 'hunk'
                     ? 'text-indigo-400'
-                    : 'text-slate-400';
+                    : 'text-muted';
 
                 const quotableLine = line.newLine ?? line.oldLine;
 
                 return (
-                  <div key={i} className={`flex group ${bg} hover:bg-slate-800/40`}>
+                  <div key={i} className={`flex group ${bg} hover:bg-raised/40`}>
                     <span className={gutter} style={{ minWidth: '4ch' }}>
                       {line.type === 'add' || line.type === 'hunk' ? '' : line.oldLine ?? ''}
                     </span>
-                    <span className={`${gutter} border-r border-slate-800/60`} style={{ minWidth: '4ch' }}>
+                    <span className={`${gutter} border-r border-line/60`} style={{ minWidth: '4ch' }}>
                       {line.type === 'del' || line.type === 'hunk' ? '' : line.newLine ?? ''}
                     </span>
                     <span className={`shrink-0 w-4 text-center ${fg} select-none`}>
@@ -193,7 +193,7 @@ const FileDiff = ({
                       <button
                         onClick={() => onQuoteLine(file.filename, quotableLine)}
                         title={`Quote ${file.filename}:${quotableLine} in chat`}
-                        className="shrink-0 px-1.5 opacity-0 group-hover:opacity-100 text-slate-500 hover:text-indigo-400 transition-opacity"
+                        className="shrink-0 px-1.5 opacity-0 group-hover:opacity-100 text-subtle hover:text-indigo-400 transition-opacity"
                       >
                         <MessageSquareQuote className="w-3 h-3" />
                       </button>

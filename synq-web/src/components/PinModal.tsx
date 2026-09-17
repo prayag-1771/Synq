@@ -13,7 +13,7 @@ import {
 import { Lock, Unlock, Loader2, AlertCircle } from 'lucide-react';
 
 export default function PinModal() {
-  const { isUnlocked, setKeys } = useCryptoStore();
+  const { isUnlocked, setKeys, restoreKeys } = useCryptoStore();
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,6 +27,9 @@ export default function PinModal() {
         const res = await apiService.get('/keys/me');
         if (res.ok) {
           const data = await res.json();
+          // Keys unlocked earlier in this tab are reused — but only if they
+          // belong to this account, so a reload does not re-prompt.
+          if (data.publicKey && restoreKeys(data.publicKey)) return;
           // If keys are returned, user already has them
           setIsNewUser(!data.encryptedPrivateKey);
         } else if (res.status === 404) {
@@ -106,39 +109,50 @@ export default function PinModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 max-w-sm w-full">
-        <div className="flex justify-center mb-4">
-          <div className="p-3 bg-indigo-500/10 rounded-xl border border-indigo-500/20 text-indigo-400">
-            {isNewUser ? <Lock className="w-8 h-8" /> : <Unlock className="w-8 h-8" />}
+    <div className="fixed inset-0 z-50 bg-canvas/85 backdrop-blur-md flex items-center justify-center p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pin-title"
+        className="w-full max-w-[380px] rounded-2xl border border-line bg-surface p-7 shadow-2xl shadow-black/60 rise"
+      >
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="w-11 h-11 rounded-xl bg-accent-soft border border-accent/25 grid place-items-center text-accent-bright mb-4">
+            {isNewUser ? <Lock className="w-5 h-5" /> : <Unlock className="w-5 h-5" />}
           </div>
+          <h2 id="pin-title" className="text-[18px] font-semibold tracking-tight text-ink">
+            {isNewUser ? 'Set up encryption' : 'Unlock your messages'}
+          </h2>
+          <p className="text-[12.5px] text-subtle mt-1.5 leading-relaxed">
+            {isNewUser
+              ? 'Your password encrypts your private key on this device. You will need it to read your messages anywhere else.'
+              : 'Your messages are end-to-end encrypted. Enter your password to decrypt them on this device.'}
+          </p>
         </div>
-        
-        <h2 className="text-xl font-bold text-white text-center mb-2">
-          {isNewUser ? 'Set up End-to-End Encryption' : 'Enter Account Password'}
-        </h2>
-        
-        <p className="text-xs text-slate-400 text-center mb-6">
-          {isNewUser 
-            ? 'Enter your account password to secure your chat history. You will need this to read your messages on new devices.'
-            : 'Enter your account password to decrypt your private keys and access your secure chat history.'}
-        </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <input
-              type="password"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="Your password"
-              className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-center text-xl tracking-[0.2em] text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-              autoFocus
-            />
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1.5">
+            <label htmlFor="pin-input" className="text-[10.5px] font-semibold text-subtle tracking-[0.08em] uppercase">
+              Account password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-faint" />
+              <input
+                id="pin-input"
+                type="password"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="w-full h-11 pl-10 pr-3 rounded-lg border border-line bg-raised text-[13.5px] text-ink placeholder-faint focus:outline-none focus:border-accent/60 focus:bg-hover transition-colors"
+                autoFocus
+              />
+            </div>
           </div>
 
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex gap-2 items-center text-red-400 text-xs">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="flex items-start gap-2 px-3.5 py-2.5 rounded-lg bg-critical/10 border border-critical/25 text-critical text-[12.5px]">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
               <span>{error}</span>
             </div>
           )}
@@ -146,10 +160,10 @@ export default function PinModal() {
           <button
             type="submit"
             disabled={loading || pin.length < 6}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full h-11 flex items-center justify-center gap-2 rounded-lg bg-accent hover:bg-accent-bright disabled:bg-raised disabled:text-faint disabled:cursor-not-allowed text-white text-[13.5px] font-semibold transition-colors"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isNewUser ? 'Secure My Account' : 'Decrypt History'}
+            {isNewUser ? 'Secure my account' : 'Unlock'}
           </button>
         </form>
       </div>
